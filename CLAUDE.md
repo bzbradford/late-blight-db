@@ -41,9 +41,20 @@ email these links. Data fetching belongs in `load` functions driven by those par
 component-local fetches.
 
 **Diseases are rows, not an enum.** Adding a third disease must be a data change, not a
-migration plus a code sweep. Crops and strains are per-disease lookup tables for the same
-reason: late blight uses clonal lineages (US-23, US-24); CDM uses clades. These vocabularies
-must never be shared across diseases.
+migration plus a code sweep.
+
+**Crop, operation type, and strain are free text.** No lookup tables, no enums, no foreign
+keys, no validation beyond length. These fields are descriptive only — nothing in the map's
+symbology or filtering reads them, which is what makes variant spellings cheap. Admins are a
+small set of trusted extension specialists and the vocabularies are genuinely fuzzy
+("Cucurbits" vs "Cucumber"). Normalize on input instead: trim, collapse internal whitespace,
+capitalize the first letter only. Sentence case, never title case — title-casing mangles real
+crop names. The admin form offers a `datalist` of distinct existing values so spellings
+converge naturally, but anything typed is accepted.
+
+**Everything recorded is public.** There are no admin-only or private fields. Detections
+display at county resolution and carry no farm-identifying data; anything further worth
+sharing goes in `comments`.
 
 **Recency symbology differs by year.** For the current season, color by days since the most
 recent detection. For a past season that ramp is meaningless — every detection is equally old
@@ -81,4 +92,6 @@ APIs. It runs behind whatever reverse proxy the extension server provides.
 - Do not hand-edit anything in `static/geo/` or `src/lib/components/ui/`.
 - Do not enable public signup — admins are provisioned by CLI script.
 - Do not hardcode the year list; derive available years from the data.
+- Do not add lookup tables, enums, or constraints for crop, operation type, or strain.
+- Do not add private or admin-only fields to incidents.
 - Do not hard-delete detections — they are soft-deleted so retractions stay auditable.
