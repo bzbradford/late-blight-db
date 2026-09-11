@@ -41,7 +41,7 @@ test('an unknown disease or year falls back instead of erroring', async ({ page 
 
 test('selecting a disease clears a county selected under the previous one', async ({ page }) => {
 	await page.goto('/?disease=late-blight&year=2026&county=55025');
-	await expect(page.getByText('Filtered to county 55025')).toBeVisible();
+	await expect(page.getByText('Dane, WI — 2 detections')).toBeVisible();
 
 	await page.getByRole('link', { name: /Cucurbit downy mildew/ }).click();
 	await expect(page).not.toHaveURL(/county=/);

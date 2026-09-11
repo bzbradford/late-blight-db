@@ -2,10 +2,12 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
+	import DetectionFeed from '$lib/components/DetectionFeed.svelte';
 	import DetectionMap from '$lib/components/DetectionMap.svelte';
 	import Header from '$lib/components/shell/Header.svelte';
 	import Legend from '$lib/components/shell/Legend.svelte';
 	import { symbologyMode } from '$lib/map/symbology';
+	import { requestFlyTo } from '$lib/state/selection.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -20,6 +22,18 @@
 	 * two views behind a switch. On desktop both are visible and this is ignored.
 	 */
 	let mobileView = $state<'map' | 'list'>('map');
+
+	/**
+	 * A shared link like `?county=55025` should arrive showing that county, not the whole
+	 * country. Only on first load — afterwards the map must not chase its own click.
+	 */
+	let didInitialFly = false;
+	$effect(() => {
+		if (!didInitialFly && data.selectedCounty) {
+			didInitialFly = true;
+			requestFlyTo(data.selectedCounty);
+		}
+	});
 
 	/** Selection is URL state so the view stays shareable and back/forward works. */
 	function selectCounty(fips: string | null) {
@@ -88,18 +102,18 @@
 
 		<aside
 			aria-label="Detection feed"
-			class="min-h-0 flex-col overflow-y-auto border-t md:flex md:w-96 md:border-t-0 md:border-l {mobileView ===
+			class="min-h-0 flex-col border-t md:flex md:w-96 md:border-t-0 md:border-l {mobileView ===
 			'list'
 				? 'flex'
 				: 'hidden'}"
 		>
-			<!-- Track G replaces this with the live detection feed. -->
-			<div class="p-4 text-sm text-muted-foreground">
-				<p>Detection feed for {activeDiseaseName}, {data.activeYear}.</p>
-				{#if data.selectedCounty}
-					<p class="mt-2">Filtered to county {data.selectedCounty}.</p>
-				{/if}
-			</div>
+			<DetectionFeed
+				detections={data.detections}
+				selectedCounty={data.selectedCounty}
+				diseaseName={activeDiseaseName}
+				year={data.activeYear}
+				onSelect={selectCounty}
+			/>
 		</aside>
 	</main>
 </div>

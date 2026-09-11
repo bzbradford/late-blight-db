@@ -16,6 +16,7 @@
 	import type { FeatureCollection } from 'geojson';
 	import { basemapStyleUrl, fallbackStyle } from '$lib/map/basemap';
 	import { defaultExtent, expandExtent } from '$lib/map/extent';
+	import { flyRequest } from '$lib/state/selection.svelte';
 	import {
 		resolveToken,
 		tokenFor,
@@ -248,6 +249,22 @@
 			applyFeatureState();
 			fitToData(true);
 		}
+	});
+
+	/**
+	 * Recentre when the feed asks. Deliberately not driven by `selectedCounty`: clicking a
+	 * county on the map must not move the map out from under the pointer.
+	 */
+	$effect(() => {
+		const req = flyRequest();
+		if (!ready || !map || !req) return;
+		const target = aggregates.find((a) => a.fips === req.fips);
+		if (!target) return;
+		map.easeTo({
+			center: [target.lon, target.lat],
+			zoom: Math.max(map.getZoom(), 6),
+			duration: 700
+		});
 	});
 
 	// Highlight the selected county without touching the fill layer.
