@@ -10,6 +10,12 @@
 	<header class="border-b bg-background">
 		<div class="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
 			<a href={resolve('/admin')} class="text-base font-semibold tracking-tight">Administration</a>
+			<a
+				href={resolve('/admin/incidents')}
+				class="text-sm text-muted-foreground hover:text-foreground"
+			>
+				Detections
+			</a>
 			<a href={resolve('/')} class="text-sm text-muted-foreground hover:text-foreground">
 				View public map
 			</a>
