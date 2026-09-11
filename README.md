@@ -47,6 +47,19 @@ psql -d lateblight_dev -c "GRANT USAGE, CREATE ON SCHEMA public TO lateblight_ap
 `CREATE` on the _database_ (not just the schema) is required: drizzle-kit keeps its migration
 ledger in a separate `drizzle` schema and must be able to create it.
 
+### Admin accounts
+
+There is no public registration. Accounts exist only because someone ran:
+
+```sh
+pnpm create-admin --email jane@wisc.edu --name "Jane Doe"
+```
+
+A password is generated and printed once. Supply your own with `--password`, or rotate an
+existing one with `--reset`. `pnpm seed:dev` also provisions a fixed development account
+(`e2e-admin@example.com`) that the end-to-end suite signs in as — which is one reason that
+script refuses to run under `NODE_ENV=production`.
+
 ### Browser tests
 
 The Vitest `client` project and the Playwright e2e suite run a real Chromium. Install the
@@ -81,4 +94,5 @@ pnpm build:geo    # regenerate map geometry from the Census shapefiles
 pnpm seed         # seed diseases + counties
 pnpm seed:dev     # replace incidents with synthetic dev data
 pnpm auth:schema  # regenerate the Better Auth Drizzle schema
+pnpm create-admin # provision or reset an admin account
 ```

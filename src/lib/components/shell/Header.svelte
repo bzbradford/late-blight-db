@@ -10,9 +10,10 @@
 		years: number[];
 		activeDisease: string;
 		activeYear: number;
+		isAdmin?: boolean;
 	};
 
-	let { diseases, years, activeDisease, activeYear }: Props = $props();
+	let { diseases, years, activeDisease, activeYear, isAdmin = false }: Props = $props();
 
 	/**
 	 * Disease and year live in the URL so every view is linkable — extension agents
@@ -66,6 +67,14 @@
 			</ul>
 		</nav>
 
+		{#if isAdmin}
+			<a
+				href={resolve('/admin')}
+				class="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+			>
+				Administration
+			</a>
+		{/if}
 		<div class="flex items-center gap-2">
 			<span id="year-label" class="text-sm text-muted-foreground">Year</span>
 			<Select.Root

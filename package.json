@@ -22,7 +22,8 @@
 		"auth:schema": "auth generate --config src/lib/server/auth.ts --output src/lib/server/db/auth.schema.ts --yes",
 		"build:geo": "tsx scripts/build-geo.ts",
 		"seed": "tsx --env-file=.env scripts/seed.ts",
-		"seed:dev": "tsx --env-file=.env scripts/seed-dev.ts"
+		"seed:dev": "tsx --env-file=.env scripts/seed-dev.ts",
+		"create-admin": "tsx --env-file=.env scripts/create-admin.ts"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",

@@ -46,6 +46,7 @@
 		years={data.years}
 		activeDisease={data.activeDisease}
 		activeYear={data.activeYear}
+		isAdmin={data.isAdmin}
 	/>
 
 	<div class="flex items-center gap-1 border-b p-2 md:hidden">

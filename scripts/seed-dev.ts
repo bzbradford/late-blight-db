@@ -14,8 +14,11 @@
  * Usage: pnpm seed:dev
  */
 import { sql } from 'drizzle-orm';
+import { betterAuth } from 'better-auth';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+import * as schema from '../src/lib/server/db/schema';
 import { diseases, incidents } from '../src/lib/server/db/schema';
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -107,8 +110,19 @@ const CDM: Row[] = [
 	{ fips: '37117', observedOn: onDate(lastYear, 7, 30), crop: 'Cucumber' }
 ];
 
+/**
+ * A known admin account so the end-to-end suite is reproducible from a clean
+ * checkout. These credentials are fixed and public — which is exactly why this
+ * script refuses to run under NODE_ENV=production.
+ */
+const DEV_ADMIN = {
+	email: 'e2e-admin@example.com',
+	name: 'E2E Admin',
+	password: 'e2e-test-password-123'
+};
+
 const client = postgres(DATABASE_URL);
-const db = drizzle(client);
+const db = drizzle(client, { schema });
 
 try {
 	const rows = await db.select({ id: diseases.id, slug: diseases.slug }).from(diseases);
@@ -129,7 +143,36 @@ try {
 
 	await db.insert(incidents).values(values);
 
+	// Provision the development admin through Better Auth so the password hash matches
+	// what the app will verify against.
+	const auth = betterAuth({
+		secret: process.env.BETTER_AUTH_SECRET ?? 'dev-only-secret-not-used-in-production',
+		baseURL: process.env.ORIGIN ?? 'http://localhost:5173',
+		database: drizzleAdapter(db, { provider: 'pg' }),
+		emailAndPassword: { enabled: true, minPasswordLength: 12 }
+	});
+	const ctx = await auth.$context;
+	const hash = await ctx.password.hash(DEV_ADMIN.password);
+	const existing = await ctx.internalAdapter.findUserByEmail(DEV_ADMIN.email);
+
+	if (existing) {
+		await ctx.internalAdapter.updatePassword(existing.user.id, hash);
+	} else {
+		const user = await ctx.internalAdapter.createUser({
+			email: DEV_ADMIN.email,
+			name: DEV_ADMIN.name,
+			emailVerified: true
+		});
+		await ctx.internalAdapter.createAccount({
+			userId: user.id,
+			providerId: 'credential',
+			accountId: user.id,
+			password: hash
+		});
+	}
+
 	console.log(`Seeded ${values.length} synthetic detections.`);
+	console.log(`  dev admin: ${DEV_ADMIN.email} / ${DEV_ADMIN.password}`);
 	console.log(`  late blight: ${LATE_BLIGHT.length}, cucurbit downy mildew: ${CDM.length}`);
 	console.log(`  years: ${lastYear}, ${thisYear}`);
 } finally {
