@@ -26,6 +26,9 @@ Requires Node 24+, pnpm 10+, and a PostgreSQL 18 database.
 pnpm install
 cp .env.example .env    # then fill in DATABASE_URL and BETTER_AUTH_SECRET
 pnpm db:migrate
+pnpm build:geo    # Census shapefiles -> static/geo + scripts/data/counties.csv
+pnpm seed         # reference data: diseases + counties (idempotent, production-safe)
+pnpm seed:dev     # synthetic detections for local development only
 pnpm dev
 ```
 
@@ -73,5 +76,8 @@ pnpm test:e2e     # Playwright
 pnpm db:generate  # generate a migration from schema changes
 pnpm db:migrate   # apply migrations
 pnpm db:studio    # Drizzle Studio
+pnpm build:geo    # regenerate map geometry from the Census shapefiles
+pnpm seed         # seed diseases + counties
+pnpm seed:dev     # replace incidents with synthetic dev data
 pnpm auth:schema  # regenerate the Better Auth Drizzle schema
 ```
