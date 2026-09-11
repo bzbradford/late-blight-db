@@ -1,42 +1,77 @@
-# sv
+# Vegetable Disease Detection Map
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A public, county-resolution map of confirmed **late blight** (_Phytophthora infestans_) and
+**cucurbit downy mildew** (_Pseudoperonospora cubensis_) detections in commercial vegetable
+production.
 
-## Creating a project
+Both diseases arrive by long-distance inoculum dispersal rather than persisting locally, so
+knowing where and how recently they have been confirmed is the most actionable input a grower
+or extension agent has for timing preventive fungicide programs.
 
-If you're seeing this, you've probably already done this step. Congrats!
+The public site is read-only. Extension specialists hold admin accounts and enter detections.
 
-```sh
-# create a new project
-npx sv create my-app
-```
+## Stack
 
-To recreate this project with the same configuration:
+SvelteKit 2 / Svelte 5 (runes), TypeScript, Tailwind 4, shadcn-svelte, MapLibre GL JS,
+PostgreSQL 18 with Drizzle ORM, Better Auth, `adapter-node`.
 
-```sh
-# recreate this project
-pnpm dlx sv@0.17.0 create --template minimal --types ts --add prettier eslint vitest="usages:unit,component" playwright tailwindcss="plugins:none" sveltekit-adapter="adapter:node" drizzle="database:postgresql+postgresql:postgres.js+docker:no" better-auth="demo:password" --no-download-check --install pnpm .
-```
+County geometry is a static build-time TopoJSON asset, not database geometry — there is no
+PostGIS dependency. See [CLAUDE.md](CLAUDE.md) for the architecture decisions.
 
-## Developing
+## Setup
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
+Requires Node 24+, pnpm 10+, and a PostgreSQL 18 database.
 
 ```sh
-npm run build
+pnpm install
+cp .env.example .env    # then fill in DATABASE_URL and BETTER_AUTH_SECRET
+pnpm db:migrate
+pnpm dev
 ```
 
-You can preview the production build with `npm run preview`.
+### Database role
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+The app connects over TCP with its own least-privilege role rather than your personal
+Postgres role. To create it:
+
+```sh
+sudo -u postgres psql -c "CREATE ROLE lateblight_app LOGIN PASSWORD 'choose-a-password';"
+psql -d lateblight_dev -c "GRANT CONNECT, CREATE ON DATABASE lateblight_dev TO lateblight_app;"
+psql -d lateblight_dev -c "GRANT USAGE, CREATE ON SCHEMA public TO lateblight_app;"
+```
+
+`CREATE` on the _database_ (not just the schema) is required: drizzle-kit keeps its migration
+ledger in a separate `drizzle` schema and must be able to create it.
+
+### Browser tests
+
+The Vitest `client` project and the Playwright e2e suite run a real Chromium. Install the
+browser and its system libraries once:
+
+```sh
+pnpm exec playwright install chromium
+sudo pnpm exec playwright install-deps chromium
+```
+
+Without the system libraries Chromium fails to start (`libnspr4.so: cannot open shared object
+file`). The `server` test project needs none of this and runs anywhere:
+
+```sh
+pnpm exec vitest --run --project=server
+```
+
+## Commands
+
+```sh
+pnpm dev          # dev server
+pnpm build        # production build
+pnpm check        # svelte-check typecheck
+pnpm lint         # prettier --check && eslint
+pnpm format       # prettier --write
+pnpm test:unit    # Vitest (client + server)
+pnpm test:e2e     # Playwright
+pnpm db:generate  # generate a migration from schema changes
+pnpm db:migrate   # apply migrations
+pnpm db:studio    # Drizzle Studio
+pnpm auth:schema  # regenerate the Better Auth Drizzle schema
+```
