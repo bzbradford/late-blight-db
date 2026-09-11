@@ -32,6 +32,25 @@ pnpm seed:dev     # synthetic detections; truncates incidents, dev only
 
 ## Architecture decisions
 
+**Continental US only.** Alaska, Hawaii, and the territories are excluded from the
+shapefiles and the county table — no reports are accepted for them, so carrying their
+geometry would only add clickable counties that can never hold data. The filter lives in
+`scripts/build-geo.ts`; `pnpm seed` removes any county rows that fall out of scope, unless
+an incident still references them.
+
+**The map extent is a minimum, not a clamp.** `PUBLIC_MAP_DEFAULT_EXTENT` picks a named
+extent from `src/lib/map/extent.ts` (`conus` by default, `upper-midwest` for a regional
+deployment). If the selected disease-year has detections outside it, the view widens to
+include them — a detection must never sit off-screen because the default was framed tighter
+than the data.
+
+**Colours must be resolved before they reach MapLibre.** The palette is authored in
+`oklch()`, which MapLibre cannot parse, and it cannot read CSS variables either. Always go
+through `resolveToken()` in `$lib/map/symbology`, which rasterises via a 1×1 canvas. This
+matters more than it looks: an unparseable colour does **not** throw — `addLayer` reports it
+on the map's `error` event and silently skips the layer, leaving a basemap with no data on
+it. Never swallow MapLibre `error` events.
+
 **No PostGIS, and no geometry in the database.** Detections are county-resolution, keyed by
 5-digit FIPS. There is no spatial predicate anywhere in the app. County geometry is a static
 build-time TopoJSON asset under `static/geo/`; the server returns only detection rows, and the
@@ -99,4 +118,6 @@ APIs. It runs behind whatever reverse proxy the extension server provides.
 - Do not hardcode the year list; derive available years from the data.
 - Do not add lookup tables, enums, or constraints for crop, operation type, or strain.
 - Do not add private or admin-only fields to incidents.
+- Do not pass a raw CSS variable or `oklch()` value to a MapLibre paint property.
+- Do not add counties outside the continental US.
 - Do not hard-delete detections — they are soft-deleted so retractions stay auditable.

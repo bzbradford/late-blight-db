@@ -94,7 +94,40 @@ export function tokenFor(
 	return TIMING_BINS[month - 5].token;
 }
 
-/** Resolves a token to a concrete colour, for MapLibre (which cannot read CSS variables). */
+const colorCache = new Map<string, string>();
+
+/**
+ * Resolves a CSS custom property to an `rgb()` string MapLibre can parse.
+ *
+ * Two conversions are needed, not one. MapLibre cannot read CSS variables, and it also
+ * cannot parse `oklch()` — which the palette is authored in. Worse, an unparseable
+ * colour does not throw: `addLayer` reports it through the map's `error` event and
+ * silently skips the layer, so the map renders a basemap with no data on it.
+ *
+ * Rasterising a 1×1 canvas hands the conversion to the browser's own colour management
+ * rather than reimplementing OKLCH→sRGB here, and works for any colour syntax the
+ * browser supports.
+ */
 export function resolveToken(token: string, el: Element = document.documentElement): string {
-	return getComputedStyle(el).getPropertyValue(token).trim();
+	const cached = colorCache.get(token);
+	if (cached) return cached;
+
+	const raw = getComputedStyle(el).getPropertyValue(token).trim();
+	if (!raw) return 'rgb(0, 0, 0)';
+
+	const ctx = document.createElement('canvas').getContext('2d');
+	if (!ctx) return raw;
+
+	ctx.fillStyle = raw;
+	ctx.fillRect(0, 0, 1, 1);
+	const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+	const resolved = a === 255 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+
+	colorCache.set(token, resolved);
+	return resolved;
+}
+
+/** Clears memoised colours — call when the theme changes. */
+export function clearColorCache() {
+	colorCache.clear();
 }

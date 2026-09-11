@@ -16,7 +16,8 @@ SvelteKit 2 / Svelte 5 (runes), TypeScript, Tailwind 4, shadcn-svelte, MapLibre 
 PostgreSQL 18 with Drizzle ORM, Better Auth, `adapter-node`.
 
 County geometry is a static build-time TopoJSON asset, not database geometry — there is no
-PostGIS dependency. See [CLAUDE.md](CLAUDE.md) for the architecture decisions.
+PostGIS dependency. Scope is the continental US (lower 48 plus DC). See
+[CLAUDE.md](CLAUDE.md) for the architecture decisions.
 
 ## Setup
 

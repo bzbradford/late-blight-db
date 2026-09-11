@@ -24,11 +24,14 @@ const COUNTY_SHP = join(WORK, 'cb_2021_us_county_500k.shp');
 const STATE_SHP = join(WORK, 'cb_2021_us_state_500k.shp');
 
 /**
- * Territories carry FIPS codes at or above 60 (AS, GU, MP, PR, VI). They are dropped:
- * neither disease is tracked there, and their bounding boxes would wreck the default
- * continental-US view. This leaves the 50 states plus DC — 3,143 counties.
+ * Continental US only — the lower 48 plus DC.
+ *
+ * Dropped: Alaska (02), Hawaii (15), and the territories (FIPS >= 60: AS, GU, MP, PR,
+ * VI). No reports are accepted for any of them, so carrying their geometry would only
+ * add clickable counties that can never hold data, and their bounding boxes would
+ * wreck the default map view.
  */
-const KEEP_STATES = '+STATEFP < 60';
+const KEEP_STATES = '+STATEFP < 60 && STATEFP != "02" && STATEFP != "15"';
 
 /**
  * Visvalingam at 8% with keep-shapes holds county outlines recognisable at the zoom

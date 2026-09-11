@@ -7,10 +7,10 @@
  * Usage: pnpm seed
  */
 import { readFileSync } from 'node:fs';
-import { sql } from 'drizzle-orm';
+import { notInArray, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { counties, diseases } from '../src/lib/server/db/schema';
+import { counties, diseases, incidents } from '../src/lib/server/db/schema';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) throw new Error('DATABASE_URL is not set');
@@ -91,6 +91,36 @@ try {
 			});
 	}
 	console.log(`Seeded ${rows.length} counties.`);
+
+	// Counties dropped from the source extract (e.g. when the geographic scope
+	// narrowed to CONUS) must go, or they linger as clickable map targets that can
+	// never hold data. Anything still referenced by an incident is kept and reported
+	// rather than deleted — losing a real detection to a scope change would be far
+	// worse than a stray county row.
+	const keep = rows.map((r) => r.fips);
+	const stale = await db
+		.select({ fips: counties.fips, name: counties.name, stateUsps: counties.stateUsps })
+		.from(counties)
+		.where(notInArray(counties.fips, keep));
+
+	if (stale.length > 0) {
+		const referenced = await db
+			.select({ fips: incidents.countyFips })
+			.from(incidents)
+			.where(notInArray(incidents.countyFips, keep));
+		const blocked = new Set(referenced.map((r) => r.fips));
+
+		const removable = stale.filter((c) => !blocked.has(c.fips));
+		if (removable.length > 0) {
+			await db.delete(counties).where(notInArray(counties.fips, keep.concat([...blocked])));
+			console.log(`Removed ${removable.length} counties no longer in scope.`);
+		}
+		if (blocked.size > 0) {
+			console.warn(
+				`WARNING: ${blocked.size} out-of-scope counties kept because incidents reference them: ${[...blocked].join(', ')}`
+			);
+		}
+	}
 } finally {
 	await client.end();
 }

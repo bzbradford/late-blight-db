@@ -66,36 +66,6 @@ fips,name,state_fips,state_usps,state_name,lon,lat
 01129,Washington,01,AL,Alabama,-88.20786,31.40763
 01131,Wilcox,01,AL,Alabama,-87.35338,31.99176
 01133,Winston,01,AL,Alabama,-87.37368,34.1492
-02013,Aleutians East,02,AK,Alaska,-161.94364,55.55421
-02016,Aleutians West,02,AK,Alaska,-166.80716,53.8559
-02020,Anchorage,02,AK,Alaska,-148.96778,61.15416
-02050,Bethel,02,AK,Alaska,-160.65788,60.71561
-02060,Bristol Bay,02,AK,Alaska,-156.69998,58.74386
-02063,Chugach,02,AK,Alaska,-145.25078,60.80961
-02066,Copper River,02,AK,Alaska,-143.92865,61.95946
-02068,Denali,02,AK,Alaska,-150.0437,63.78517
-02070,Dillingham,02,AK,Alaska,-158.20982,59.82814
-02090,Fairbanks North Star,02,AK,Alaska,-146.56541,64.80777
-02100,Haines,02,AK,Alaska,-135.69185,59.41857
-02105,Hoonah-Angoon,02,AK,Alaska,-136.76023,58.63508
-02110,Juneau,02,AK,Alaska,-134.28705,58.56199
-02122,Kenai Peninsula,02,AK,Alaska,-152.86328,60.77861
-02130,Ketchikan Gateway,02,AK,Alaska,-130.46058,55.40858
-02150,Kodiak Island,02,AK,Alaska,-154.92069,58.15149
-02158,Kusilvak,02,AK,Alaska,-163.63541,62.26937
-02164,Lake and Peninsula,02,AK,Alaska,-155.53897,58.96309
-02170,Matanuska-Susitna,02,AK,Alaska,-149.59088,62.35318
-02180,Nome,02,AK,Alaska,-165.01079,65.33685
-02185,North Slope,02,AK,Alaska,-153.48561,69.32929
-02188,Northwest Arctic,02,AK,Alaska,-159.72097,67.05302
-02195,Petersburg,02,AK,Alaska,-132.88333,57.32334
-02198,Prince of Wales-Hyder,02,AK,Alaska,-132.88494,55.63725
-02220,Sitka,02,AK,Alaska,-134.97532,56.89955
-02230,Skagway,02,AK,Alaska,-135.37483,59.60772
-02240,Southeast Fairbanks,02,AK,Alaska,-142.5039,64.06212
-02275,Wrangell,02,AK,Alaska,-131.95131,56.43029
-02282,Yakutat,02,AK,Alaska,-139.17013,59.70579
-02290,Yukon-Koyukuk,02,AK,Alaska,-151.74963,66.02558
 04001,Apache,04,AZ,Arizona,-109.47305,35.90328
 04003,Cochise,04,AZ,Arizona,-109.75117,31.87957
 04005,Coconino,04,AZ,Arizona,-111.77098,35.86936
@@ -546,11 +516,6 @@ fips,name,state_fips,state_usps,state_name,lon,lat
 13317,Wilkes,13,GA,Georgia,-82.7432,33.78195
 13319,Wilkinson,13,GA,Georgia,-83.17124,32.80238
 13321,Worth,13,GA,Georgia,-83.85245,31.50198
-15001,Hawaii,15,HI,Hawaii,-155.51847,19.59855
-15003,Honolulu,15,HI,Hawaii,-157.98688,21.46639
-15005,Kalawao,15,HI,Hawaii,-156.9665,21.19248
-15007,Kauai,15,HI,Hawaii,-159.52397,22.05856
-15009,Maui,15,HI,Hawaii,-156.31643,20.78832
 16001,Ada,16,ID,Idaho,-116.24116,43.4511
 16003,Adams,16,ID,Idaho,-116.42924,44.89716
 16005,Bannock,16,ID,Idaho,-112.15549,42.54086

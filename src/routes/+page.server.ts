@@ -1,3 +1,4 @@
+import { getCountyAggregates, getDetections } from '$lib/server/queries/detections';
 import { listDiseases, listYears } from '$lib/server/queries/diseases';
 import type { PageServerLoad } from './$types';
 
@@ -15,10 +16,17 @@ export const load: PageServerLoad = async ({ url }) => {
 
 	const county = url.searchParams.get('county');
 
+	const [aggregates, detections] = await Promise.all([
+		getCountyAggregates(disease.slug, year),
+		getDetections(disease.slug, year)
+	]);
+
 	return {
 		activeDisease: disease.slug,
 		activeYear: year,
 		years,
+		aggregates,
+		detections,
 		selectedCounty: county && /^\d{5}$/.test(county) ? county : null
 	};
 };

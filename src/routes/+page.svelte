@@ -1,4 +1,8 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
+	import DetectionMap from '$lib/components/DetectionMap.svelte';
 	import Header from '$lib/components/shell/Header.svelte';
 	import Legend from '$lib/components/shell/Legend.svelte';
 	import { symbologyMode } from '$lib/map/symbology';
@@ -16,6 +20,16 @@
 	 * two views behind a switch. On desktop both are visible and this is ignored.
 	 */
 	let mobileView = $state<'map' | 'list'>('map');
+
+	/** Selection is URL state so the view stays shareable and back/forward works. */
+	function selectCounty(fips: string | null) {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const next = new URLSearchParams(page.url.searchParams);
+		if (fips) next.set('county', fips);
+		else next.delete('county');
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		goto(`${resolve('/')}?${next.toString()}`, { noScroll: true, keepFocus: true });
+	}
 </script>
 
 <svelte:head>
@@ -58,9 +72,13 @@
 			aria-label="Detection map"
 			class="relative min-h-0 flex-1 {mobileView === 'map' ? 'flex' : 'hidden'} md:flex"
 		>
-			<!-- Track F replaces this with the MapLibre canvas. -->
-			<div class="flex flex-1 items-center justify-center bg-muted/40 text-muted-foreground">
-				<p class="text-sm">Map — {activeDiseaseName}, {data.activeYear}</p>
+			<div class="flex-1">
+				<DetectionMap
+					aggregates={data.aggregates}
+					{mode}
+					selectedCounty={data.selectedCounty}
+					onSelect={selectCounty}
+				/>
 			</div>
 			<div class="absolute bottom-4 left-4 w-56">
 				<Legend {mode} year={data.activeYear} />

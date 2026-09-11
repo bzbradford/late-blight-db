@@ -5,6 +5,10 @@ import adapter from '@sveltejs/adapter-node';
 import { sveltekit } from '@sveltejs/kit/vite';
 
 export default defineConfig({
+	// MapLibre spawns its worker as an ES module. Without this Vite emits the worker as
+	// IIFE and the built page fails to load it (net::ERR_FAILED), which leaves the map
+	// stuck before its `load` event and silently blank.
+	worker: { format: 'es' },
 	plugins: [
 		tailwindcss(),
 		sveltekit({
