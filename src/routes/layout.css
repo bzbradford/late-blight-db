@@ -119,3 +119,64 @@
 		@apply bg-background text-foreground;
 	}
 }
+
+/* ---------------------------------------------------------------------------
+ * Disease and symbology palette.
+ *
+ * The map, the legend, and the disease tabs all read these — never hardcode a
+ * colour in a component. Ramps vary in lightness as well as hue so they stay
+ * readable for colour-vision deficiencies and in greyscale print.
+ * ------------------------------------------------------------------------- */
+:root {
+	/* Disease accents (tabs, feed markers). */
+	--disease-late-blight: oklch(0.52 0.2 25);
+	--disease-cucurbit-downy-mildew: oklch(0.52 0.12 190);
+
+	/* Current-season recency ramp: days since the most recent detection. */
+	--recency-7: oklch(0.53 0.22 27);
+	--recency-14: oklch(0.66 0.19 45);
+	--recency-30: oklch(0.78 0.16 75);
+	--recency-old: oklch(0.89 0.09 92);
+
+	/* Past-season timing ramp: month of the first detection, early to late. */
+	--timing-1: oklch(0.42 0.13 264);
+	--timing-2: oklch(0.53 0.13 225);
+	--timing-3: oklch(0.64 0.12 190);
+	--timing-4: oklch(0.72 0.14 150);
+	--timing-5: oklch(0.81 0.15 110);
+	--timing-6: oklch(0.88 0.16 90);
+
+	/* Counties with no detection in the selected disease-year. */
+	--county-none: oklch(0.93 0.003 250);
+	--county-outline: oklch(0.78 0.005 250);
+	--state-outline: oklch(0.45 0.01 250);
+	--county-selected: oklch(0.25 0.02 250);
+}
+
+.dark {
+	--disease-late-blight: oklch(0.68 0.19 25);
+	--disease-cucurbit-downy-mildew: oklch(0.7 0.12 190);
+
+	--recency-7: oklch(0.62 0.23 27);
+	--recency-14: oklch(0.71 0.19 45);
+	--recency-30: oklch(0.8 0.16 75);
+	--recency-old: oklch(0.87 0.1 92);
+
+	--timing-1: oklch(0.48 0.14 264);
+	--timing-2: oklch(0.58 0.13 225);
+	--timing-3: oklch(0.67 0.12 190);
+	--timing-4: oklch(0.75 0.14 150);
+	--timing-5: oklch(0.83 0.15 110);
+	--timing-6: oklch(0.89 0.16 90);
+
+	--county-none: oklch(0.3 0.005 250);
+	--county-outline: oklch(0.42 0.008 250);
+	--state-outline: oklch(0.75 0.01 250);
+	--county-selected: oklch(0.97 0.01 250);
+}
+
+@theme inline {
+	--color-disease-late-blight: var(--disease-late-blight);
+	--color-disease-cucurbit-downy-mildew: var(--disease-cucurbit-downy-mildew);
+	--color-county-none: var(--county-none);
+}
