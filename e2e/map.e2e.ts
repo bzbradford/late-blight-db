@@ -30,7 +30,7 @@ test('map loads the county topology successfully', async ({ page }) => {
 	expect(responses).toContain(200);
 });
 
-test('clicking a county puts it in the URL', async ({ page }) => {
+test('clicking a county selects it', async ({ page }) => {
 	await page.goto('/?disease=late-blight&year=2026');
 	const canvas = page.getByRole('application', { name: 'County detection map' }).locator('canvas');
 	await expect(canvas).toBeVisible();
@@ -43,5 +43,5 @@ test('clicking a county puts it in the URL', async ({ page }) => {
 	if (!box) throw new Error('map canvas has no bounding box');
 	await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 
-	await expect(page).toHaveURL(/county=\d{5}/, { timeout: 10_000 });
+	await expect(page.getByRole('button', { name: 'Clear' })).toBeVisible({ timeout: 10_000 });
 });

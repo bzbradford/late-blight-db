@@ -19,7 +19,7 @@ Its durable lessons have been folded into `CLAUDE.md`; the summary below is enou
 | 2     | Schema (A), geodata (B), shell + symbology (C)         | ✅ `f626b95`, `57c596f`     |
 | 3     | Auth (D), public data layer (E), map (F)               | ✅ `bcdc73c`, `91ea71e`     |
 | 4     | Feed + map/feed linking (G), admin CRUD (H)            | ✅ `c0ea24c`, `be51bff`     |
-| **5** | **Polish — see below**                                 | 🟡 **Planned, not started** |
+| **5** | **Polish — see below**                                 | 🟡 **In progress** (5S ✅)  |
 | 6     | Deploy (systemd, reverse proxy, backups, health check) | ⏸ Blocked on server details |
 
 Phase 6 still needs from the user: SSH/host details for the extension server, the production
@@ -66,7 +66,7 @@ Settled 2026-09-22 unless marked open.
 
 ### Wave 0 — do first; it changes how every later track reads state
 
-#### Track 5S — View state out of the URL; Share links
+#### Track 5S — View state out of the URL; Share links — ✅ DONE
 
 Owns `src/lib/state/view.svelte.ts` (new), `src/lib/state/selection.svelte.ts`,
 `src/routes/api/view/+server.ts` (new), `src/routes/+page.server.ts`, `src/routes/+page.svelte`,
@@ -99,15 +99,29 @@ Consequences, accepted:
 
 Tasks:
 
-- [ ] `view.svelte.ts` + `/api/view` endpoint (validate params the same way `load` does;
-      short `Cache-Control`).
-- [ ] Arrival-then-strip in `+page.svelte`; Header and feed switch to the view module.
-- [ ] Share button, placed in the slim control bar (5C). Build it here as a component, and 5C
-      places it.
-- [ ] Rewrite `CLAUDE.md` "The URL is the state" to describe this model.
-- [ ] e2e: tests that `goto('/?disease=…&year=…')` still pass unchanged, because share links
-      are the entry path. Replace `toHaveURL(/county=…/)` assertions with DOM assertions, and
-      add tests for URL stripping and share-link round-trips.
+- [x] `view.svelte.ts` + `/api/view` endpoint. Both it and the page `load` go through
+      `loadView()` in `$lib/server/view.ts`. The endpoint sends `no-store` rather than a short
+      cache: an admin checking a detection they just saved must not see a stale response.
+- [x] Arrival-then-strip in `+page.svelte`; Header and feed switch to the view module.
+- [x] `ShareButton.svelte`, in the header **for now**. 5C moves it into the slim control bar.
+      Falls back to a selectable text field when the Clipboard API is refused (it needs a
+      secure context).
+- [x] Rewrite `CLAUDE.md` "The URL is the state" to describe this model.
+- [x] e2e: arrival tests unchanged; URL assertions replaced; added clean-URL, year-switch,
+      empty-county share link, and a Share → clipboard → fresh-page round trip. 29/29 green.
+- [ ] **Moved to 5C:** parsing `labels`/`since` on arrival and putting them in share links.
+      They belong with the label UI, which doesn't exist yet.
+
+Notes from implementation:
+
+- `replaceState` must run in `afterNavigate` (type `enter`), not `onMount`. From `onMount`
+  it throws `Cannot read properties of undefined (reading '$set')` inside SvelteKit, and
+  only the map test's `pageerror` listener caught it.
+- Fixed a bug that predated this track, in `DetectionMap.svelte`: the fly-to effect tracked
+  `aggregates`, so every disease/year change replayed the last fly request and overrode
+  `fitToData`. Detections in the new view could end up off-screen. Now `untrack`ed.
+- A share link naming a county with no detections arrives with nothing selected (D5).
+- The header title is a full-reload link back to `/`, i.e. "reset to a fresh visit".
 
 **Acceptance:** opening a share link lands in the exact view with a clean address bar; the
 default URL is always `/`; switching disease/year never shows the previous year's colours.
@@ -384,3 +398,6 @@ Append one line per working session: date, what moved, what's next.
   Next: start Track 5S.
 - 2026-09-22 — D8: internal integer key + public 5-char `public_id` (Excel-safe alphabet).
   D11: built-in PNG export adopted as Track 5F. All decisions settled. Next: Track 5S.
+- 2026-09-22 — Track 5S done: view state out of the URL, `/api/view`, Share button, CLAUDE.md
+  rule rewritten, fly-to replay bug fixed. check/lint/unit/e2e all green; screenshot-verified.
+  Next: Wave 1 (5A, 5B, 5D — parallelisable).

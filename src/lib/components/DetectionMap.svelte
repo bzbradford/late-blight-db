@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	// MapLibre resolves its worker with `new URL('./maplibre-gl-worker.mjs', import.meta.url)`,
 	// which Vite cannot analyse statically — so the worker is never emitted and the built
 	// page fails to load it, leaving the map stuck before `load` and silently blank.
@@ -258,7 +259,9 @@
 	$effect(() => {
 		const req = flyRequest();
 		if (!ready || !map || !req) return;
-		const target = aggregates.find((a) => a.fips === req.fips);
+		// Untracked: otherwise every disease-year change re-runs this effect, replays the
+		// last request, and flies back to the old county over the top of `fitToData`.
+		const target = untrack(() => aggregates.find((a) => a.fips === req.fips));
 		if (!target) return;
 		map.easeTo({
 			center: [target.lon, target.lat],

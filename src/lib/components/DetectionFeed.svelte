@@ -53,7 +53,7 @@
 
 	/**
 	 * Bring the first detection for the selected county into view. Runs whenever the
-	 * selection changes, including on a deep link, so `?county=` arrives already scrolled.
+	 * selection changes, including on arrival from a share link, which then opens already scrolled.
 	 */
 	$effect(() => {
 		const fips = selectedCounty;

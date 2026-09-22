@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { onMount, untrack } from 'svelte';
+	import { afterNavigate, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import DetectionFeed from '$lib/components/DetectionFeed.svelte';
@@ -8,14 +9,17 @@
 	import Legend from '$lib/components/shell/Legend.svelte';
 	import { symbologyMode } from '$lib/map/symbology';
 	import { requestFlyTo } from '$lib/state/selection.svelte';
+	import { ViewState } from '$lib/state/view.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
-	let mode = $derived(symbologyMode(data.activeYear));
-	let activeDiseaseName = $derived(
-		data.diseases.find((d) => d.slug === data.activeDisease)?.name ?? ''
-	);
+	// `data` is only the arrival view. From here on the view state owns disease, year,
+	// and selection, and `data` is never re-read — the page does not navigate again.
+	const view = untrack(() => new ViewState(data, data.selectedCounty));
+
+	let mode = $derived(symbologyMode(view.year));
+	let activeDiseaseName = $derived(data.diseases.find((d) => d.slug === view.disease)?.name ?? '');
 
 	/**
 	 * On narrow screens the map and the feed cannot share the viewport, so they become
@@ -23,31 +27,23 @@
 	 */
 	let mobileView = $state<'map' | 'list'>('map');
 
-	/**
-	 * A shared link like `?county=55025` should arrive showing that county, not the whole
-	 * country. Only on first load — afterwards the map must not chase its own click.
-	 */
-	let didInitialFly = false;
-	$effect(() => {
-		if (!didInitialFly && data.selectedCounty) {
-			didInitialFly = true;
-			requestFlyTo(data.selectedCounty);
-		}
+	// A share link has done its job once the view is open. Clear the address bar so the
+	// page reads as the app rather than as one particular link. This waits for the
+	// arrival navigation to finish: `onMount` runs before the router has hydrated, and
+	// `replaceState` then throws inside SvelteKit.
+	afterNavigate(({ type }) => {
+		if (type === 'enter' && page.url.search) replaceState(resolve('/'), {});
 	});
 
-	/** Selection is URL state so the view stays shareable and back/forward works. */
-	function selectCounty(fips: string | null) {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const next = new URLSearchParams(page.url.searchParams);
-		if (fips) next.set('county', fips);
-		else next.delete('county');
-		// eslint-disable-next-line svelte/no-navigation-without-resolve
-		goto(`${resolve('/')}?${next.toString()}`, { noScroll: true, keepFocus: true });
-	}
+	onMount(() => {
+		// A shared link naming a county should arrive showing that county, not the whole
+		// country. Only on arrival — afterwards the map must not chase its own click.
+		if (view.selectedCounty) requestFlyTo(view.selectedCounty);
+	});
 </script>
 
 <svelte:head>
-	<title>{activeDiseaseName} detections, {data.activeYear}</title>
+	<title>{activeDiseaseName} detections, {view.year}</title>
 	<meta
 		name="description"
 		content="County-level reports of confirmed late blight and cucurbit downy mildew detections in commercial vegetable production."
@@ -55,13 +51,13 @@
 </svelte:head>
 
 <div class="flex h-screen flex-col">
-	<Header
-		diseases={data.diseases}
-		years={data.years}
-		activeDisease={data.activeDisease}
-		activeYear={data.activeYear}
-		isAdmin={data.isAdmin}
-	/>
+	<Header diseases={data.diseases} {view} isAdmin={data.isAdmin} />
+
+	{#if view.error}
+		<p role="alert" class="border-b bg-destructive/10 px-4 py-2 text-sm text-destructive">
+			{view.error}
+		</p>
+	{/if}
 
 	<div class="flex items-center gap-1 border-b p-2 md:hidden">
 		<button
@@ -82,21 +78,27 @@
 		>
 	</div>
 
-	<main class="flex min-h-0 flex-1 flex-col md:flex-row">
+	<!-- Dimmed while a switch loads, so the previous disease-year's colours never read as the new one's. -->
+	<main
+		aria-busy={view.loading}
+		class="flex min-h-0 flex-1 flex-col transition-opacity md:flex-row {view.loading
+			? 'opacity-50'
+			: ''}"
+	>
 		<section
 			aria-label="Detection map"
 			class="relative min-h-0 flex-1 {mobileView === 'map' ? 'flex' : 'hidden'} md:flex"
 		>
 			<div class="flex-1">
 				<DetectionMap
-					aggregates={data.aggregates}
+					aggregates={view.aggregates}
 					{mode}
-					selectedCounty={data.selectedCounty}
-					onSelect={selectCounty}
+					selectedCounty={view.selectedCounty}
+					onSelect={(fips) => view.select(fips)}
 				/>
 			</div>
 			<div class="absolute bottom-4 left-4 w-56">
-				<Legend {mode} year={data.activeYear} />
+				<Legend {mode} year={view.year} />
 			</div>
 		</section>
 
@@ -108,11 +110,11 @@
 				: 'hidden'}"
 		>
 			<DetectionFeed
-				detections={data.detections}
-				selectedCounty={data.selectedCounty}
+				detections={view.detections}
+				selectedCounty={view.selectedCounty}
 				diseaseName={activeDiseaseName}
-				year={data.activeYear}
-				onSelect={selectCounty}
+				year={view.year}
+				onSelect={(fips) => view.select(fips)}
 			/>
 		</aside>
 	</main>

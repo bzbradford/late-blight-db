@@ -61,10 +61,18 @@ build-time TopoJSON asset under `static/geo/`; the server returns only detection
 choropleth is a client-side join on FIPS via `map.setFeatureState()`. Never re-serialize
 GeoJSON to recolor the map, and do not add a spatial extension.
 
-**The URL is the state.** Disease, year, and selected county live in query params
-(`?disease=late-blight&year=2026&county=55025`) so every view is shareable — extension agents
-email these links. Data fetching belongs in `load` functions driven by those params, not in
-component-local fetches.
+**View state lives in `ViewState`, not the URL; views are shared deliberately.** The public
+map always opens at `/` in the default view, like an app rather than a set of pages. Disease,
+year, and selected county belong to one `ViewState` instance (`src/lib/state/view.svelte.ts`)
+that `+page.svelte` creates — an instance, never a module singleton, because module state is
+shared across requests during SSR. The **Share** button builds a link
+(`?disease=late-blight&year=2026&county=55025`, disease and year always included so a link
+outlives the January rollover). The page `load` reads those params on arrival, and the page
+strips them with `replaceState` in `afterNavigate` — calling it from `onMount` throws inside
+SvelteKit before the router has hydrated. Later disease/year switches fetch `/api/view`,
+from `ViewState.show()` only, never from components. Both paths go through `loadView()` in
+`$lib/server/view.ts`, so fallbacks for bad params stay identical. The admin area is ordinary
+pages and keeps its query-string filters.
 
 **Diseases are rows, not an enum.** Adding a third disease must be a data change, not a
 migration plus a code sweep.
