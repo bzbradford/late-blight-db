@@ -15,6 +15,12 @@
 			>
 				Detections
 			</a>
+			<a
+				href={resolve('/admin/import')}
+				class="text-sm text-muted-foreground hover:text-foreground"
+			>
+				Import CSV
+			</a>
 			<a href={resolve('/')} class="text-sm text-muted-foreground hover:text-foreground">
 				View public map
 			</a>

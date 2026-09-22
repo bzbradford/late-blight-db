@@ -73,6 +73,7 @@
 			<table class="w-full text-sm">
 				<thead class="border-b text-left text-xs text-muted-foreground">
 					<tr>
+						<th class="py-2 pr-3 font-medium">ID</th>
 						<th class="py-2 pr-3 font-medium">Observed</th>
 						<th class="py-2 pr-3 font-medium">County</th>
 						<th class="py-2 pr-3 font-medium">Disease</th>
@@ -86,6 +87,7 @@
 						<tr
 							class="border-b last:border-b-0 {incident.deletedAt ? 'text-muted-foreground' : ''}"
 						>
+							<td class="py-2 pr-3 font-mono text-xs text-muted-foreground">{incident.publicId}</td>
 							<td class="py-2 pr-3 whitespace-nowrap">{formatDate(incident.observedOn)}</td>
 							<td class="py-2 pr-3">
 								{incident.countyName}, {incident.stateUsps}

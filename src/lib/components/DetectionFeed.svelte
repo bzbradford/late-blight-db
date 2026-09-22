@@ -8,10 +8,12 @@
 		selectedCounty: string | null;
 		diseaseName: string;
 		year: number;
+		/** CSV of exactly what the feed lists. */
+		downloadHref: string;
 		onSelect: (fips: string | null) => void;
 	};
 
-	let { detections, selectedCounty, diseaseName, year, onSelect }: Props = $props();
+	let { detections, selectedCounty, diseaseName, year, downloadHref, onSelect }: Props = $props();
 
 	let listEl: HTMLDivElement | undefined = $state();
 
@@ -67,11 +69,29 @@
 
 <div class="flex h-full min-h-0 flex-col">
 	<div class="border-b bg-background px-4 py-3">
-		<p class="text-sm font-medium">
-			{detections.length}
-			{detections.length === 1 ? 'detection' : 'detections'}
-		</p>
-		<p class="text-xs text-muted-foreground">{diseaseName}, {year}</p>
+		<div class="flex items-start justify-between gap-2">
+			<div>
+				<p class="text-sm font-medium">
+					{detections.length}
+					{detections.length === 1 ? 'detection' : 'detections'}
+				</p>
+				<p class="text-xs text-muted-foreground">{diseaseName}, {year}</p>
+			</div>
+			{#if detections.length}
+				<!-- A file download, so the router must stay out of it. `downloadHref` is already
+				     resolved by the caller. -->
+				<!-- eslint-disable svelte/no-navigation-without-resolve -->
+				<a
+					href={downloadHref}
+					download
+					data-sveltekit-reload
+					class="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+				>
+					Download CSV
+				</a>
+				<!-- eslint-enable svelte/no-navigation-without-resolve -->
+			{/if}
+		</div>
 
 		{#if selectedCounty}
 			<div class="mt-2 flex items-center gap-2">
@@ -123,8 +143,14 @@
 										if (!active) requestFlyTo(detection.countyFips);
 									}}
 								>
-									<p class="text-sm font-medium">
-										{detection.countyName}, {detection.stateUsps}
+									<p class="flex items-baseline justify-between gap-2">
+										<span class="text-sm font-medium">
+											{detection.countyName}, {detection.stateUsps}
+										</span>
+										<!-- The ID in the CSV download, so a spreadsheet row can be found here. -->
+										<span class="font-mono text-[11px] text-muted-foreground">
+											{detection.publicId}
+										</span>
 									</p>
 
 									{#if detection.crop || detection.operationType || detection.strain}

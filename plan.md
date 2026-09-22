@@ -12,15 +12,15 @@ Its durable lessons have been folded into `CLAUDE.md`; the summary below is enou
 
 ## Status at a glance
 
-| Phase | Scope                                                  | Status                             |
-| ----- | ------------------------------------------------------ | ---------------------------------- |
-| 0     | Prerequisites (Postgres roles, GitHub, Chromium libs)  | ✅ Done                            |
-| 1     | Scaffold                                               | ✅ `91febfb`, `e7b915f`            |
-| 2     | Schema (A), geodata (B), shell + symbology (C)         | ✅ `f626b95`, `57c596f`            |
-| 3     | Auth (D), public data layer (E), map (F)               | ✅ `bcdc73c`, `91ea71e`            |
-| 4     | Feed + map/feed linking (G), admin CRUD (H)            | ✅ `c0ea24c`, `be51bff`            |
-| **5** | **Polish — see below**                                 | 🟡 **In progress** (5S, 5A, 5B ✅) |
-| 6     | Deploy (systemd, reverse proxy, backups, health check) | ⏸ Blocked on server details        |
+| Phase | Scope                                                  | Status                            |
+| ----- | ------------------------------------------------------ | --------------------------------- |
+| 0     | Prerequisites (Postgres roles, GitHub, Chromium libs)  | ✅ Done                           |
+| 1     | Scaffold                                               | ✅ `91febfb`, `e7b915f`           |
+| 2     | Schema (A), geodata (B), shell + symbology (C)         | ✅ `f626b95`, `57c596f`           |
+| 3     | Auth (D), public data layer (E), map (F)               | ✅ `bcdc73c`, `91ea71e`           |
+| 4     | Feed + map/feed linking (G), admin CRUD (H)            | ✅ `c0ea24c`, `be51bff`           |
+| **5** | **Polish — see below**                                 | 🟡 **In progress** (Waves 0–1 ✅) |
+| 6     | Deploy (systemd, reverse proxy, backups, health check) | ⏸ Blocked on server details       |
 
 Phase 6 still needs from the user: SSH/host details for the extension server, the production
 Postgres arrangement, and a `pg_dump` backup destination.
@@ -217,7 +217,7 @@ Notes from 5A/5B implementation:
 - Known, not fixed: the legend (bottom-left) can cover a detection county after "zoom to
   detections" or at the default extent. Revisit in 5E or with the control panel.
 
-#### Track 5D — CSV export and admin import
+#### Track 5D — CSV export and admin import — ✅ DONE
 
 Owns `src/lib/csv/**` (new), `src/routes/detections.csv/+server.ts` (new),
 `src/routes/admin/import/**` (new), `src/lib/server/queries/admin.ts` (adds functions),
@@ -229,49 +229,50 @@ another database — so it favours correctness and clear review over speed.
 
 **Public ID** (D8) — do this first; export and import both depend on it.
 
-- [ ] Add `incidents.public_id`: `char(5)`, `NOT NULL`, `UNIQUE`, lowercase.
-- [ ] **Alphabet: `23456789bcdfghjkmnpqrstvwxz`** — digits and consonants only, with
+- [x] Add `incidents.public_id`: `char(5)`, `NOT NULL`, `UNIQUE`, lowercase.
+- [x] **Alphabet: `23456789bcdfghjkmnpqrstvwxz`** — digits and consonants only, with
       look-alikes (`0 o 1 l i`) removed. The **first character is always a letter**. Why:
   - _No vowels_ → no accidental words, and no month names that Excel could read as a date.
   - _Letter first_ → Excel can't read it as a number. `12e45` would become `1.2E+46`, and
     `01234` would lose its leading zero. It also never starts with `-`, which would trip the
     formula-escaping below.
   - _Lowercase only_ → case can't matter when someone types or compares an ID.
-- [ ] Space: 19 × 27⁴ ≈ 10 M. Collisions stay unlikely at hundreds of detections a year, but
+- [x] Space: 19 × 27⁴ ≈ 10 M. Collisions stay unlikely at hundreds of detections a year, but
       they aren't impossible. The unique index is the guarantee; inserts **retry on a
       unique violation** (up to 5 times) rather than assuming the ID is fresh.
-- [ ] Generate it in Postgres, as the column `DEFAULT gen_public_id()` (a small plpgsql
+- [x] Generate it in Postgres, as the column `DEFAULT gen_public_id()` (a small plpgsql
       function in a custom migration). Adding a column with a volatile default fills every
       existing row, so no separate backfill script is needed, and no code path can insert a
       row without one. Keep the alphabet in one TS constant too, for validating imported IDs.
-- [ ] Show the public ID on feed cards (small, muted) and in the admin list, so a row in a
+- [x] Show the public ID on feed cards (small, muted) and in the admin list, so a row in a
       spreadsheet can be matched to what's on screen.
 
 **Format**
 
-- [ ] **One column spec** in `src/lib/csv/columns.ts`, used by export, template, and import.
+- [x] **One column spec** in `src/lib/csv/columns.ts`, used by export, template, and import.
       Columns: id, disease (slug), county_fips, state, county, observed_on, reported_on, crop,
       operation_type, strain, source, comments. On import, `id` is optional, and either
       `county_fips` or `state` + `county` is required.
-- [ ] **Download** `GET /detections.csv?disease=&year=` (and `year=all`), reusing
+- [x] **Download** `GET /detections.csv?disease=&year=` (and `year=all`), reusing
       `getDetections()`. Filename like `late-blight-2026.csv`. **Escape formula injection:**
       prefix any cell starting with `=`, `+`, `-`, `@`, tab or CR with `'` — growers open these
       in Excel and `comments` is free text. The import strips that prefix again.
-- [ ] **Template** at `/admin/import/template.csv` — header row plus one example row.
+- [x] **Template** at `/admin/import/template.csv` — header row plus one example row.
 
 **Import flow** — `/admin/import`, under the existing admin guard.
 
-- [ ] Upload → server parses (`papaparse`) → validates every row through
+- [x] Upload → server parses (`papaparse`) → validates every row through
       `src/lib/validation/incident.ts` → county resolution (D6) → matching → **review page**
-      → confirm. Cap at 1 MB / 2,000 rows server-side. Normalise crop/operation/strain exactly
+      → confirm. Cap at ~~1 MB~~ **400 KB** / 2,000 rows server-side (adapter-node's default
+      `BODY_SIZE_LIMIT` is 512 KB, and confirm posts the text again). Normalise crop/operation/strain exactly
       as the form does.
-- [ ] **Invalid rows block the import** — the review page lists each one by row number and
+- [x] **Invalid rows block the import** — the review page lists each one by row number and
       reason. Nothing is written until the file is clean.
-- [ ] **Matching**, for each valid row:
+- [x] **Matching**, for each valid row:
   - `id` present → match the detection with that `public_id`. An unknown `id` is an error. If the date or county
     has changed, show the row as an edit to those key fields.
   - No `id` → match on disease + county + observed date.
-- [ ] **Each row is classified** as one of:
+- [x] **Each row is classified** as one of:
   - **New** → insert.
   - **Identical** (every field equal after normalisation) → skip. Counted, not listed.
   - **Conflict** (same key, other fields differ) → show existing vs new side by side, with
@@ -283,30 +284,54 @@ another database — so it favours correctness and clear review over speed.
     `id`.
   - **Matches a retracted (soft-deleted) detection** → flagged, default skip. Otherwise
     re-importing from an old database would quietly resurrect a retraction.
-- [ ] **Duplicates inside the file itself** are handled the same way: identical rows collapse
+- [x] **Duplicates inside the file itself** are handled the same way: identical rows collapse
       with a note; differing rows become a conflict between the file's own rows.
-- [ ] **Carrying state between steps:** the parsed rows travel in an HMAC-signed hidden field
-      alongside the admin's choices. No server-side session, and no second upload.
-- [ ] **On confirm, match everything again.** If any matched row's `updated_at` changed since
+- [x] **Carrying state between steps:** ~~an HMAC-signed payload~~ — changed in
+      implementation: the confirm form posts the **original CSV text** back, and confirm
+      re-parses and re-validates it from scratch. Tampering gains nothing (it meets the same
+      validation as an upload), so signing would add a secret and no protection.
+- [x] **On confirm, match everything again.** If any matched row's `updated_at` changed since
       the review, refuse and re-show the review. Never apply choices to data the admin didn't see.
-- [ ] `importIncidents(plan, actor)` in `queries/admin.ts`: one transaction for the whole file.
+- [x] `importIncidents(plan, actor)` in `queries/admin.ts`: one transaction for the whole file.
       One `audit_log` row per insert or update, with the file name recorded, so a bulk load can
       be traced and reviewed later.
-- [ ] Show a summary afterwards: _n_ added, _n_ updated, _n_ skipped as identical, _n_ kept
+- [x] Show a summary afterwards: _n_ added, _n_ updated, _n_ skipped as identical, _n_ kept
       as existing.
-- [ ] **Same duplicate check in the single-entry form:** creating a detection whose disease +
+- [x] **Same duplicate check in the single-entry form:** creating a detection whose disease +
       county + date already exists shows a warning linking to the existing one, and a
       confirmation is required to save anyway. A warning, not a block — "keep both" is legitimate.
 
 **Tests**
 
-- [ ] Unit: column spec, formula escaping round-trip, county resolution (FIPS, names,
+- [x] Unit: column spec, formula escaping round-trip, county resolution (FIPS, names,
       ambiguous, unmatched), and classification of every case above.
-- [ ] e2e: download → re-import is all "identical"; edit one row's crop → one conflict, and
+- [x] e2e: download → re-import is all "identical"; edit one row's crop → one conflict, and
       each of the three choices does what it says; a file with one bad row writes nothing.
 
 **Acceptance:** a download re-imports as all-identical; no path creates a duplicate without
 the admin explicitly choosing "keep both"; every write has an `audit_log` row.
+
+Notes from implementation:
+
+- **Admin guard moved into `hooks.server.ts`** (`guardAdmin`). The layout `load` guard never
+  runs for form actions or `+server.ts` endpoints, so "one guard for /admin" wasn't true
+  before. Tested: an anonymous same-origin POST to an admin action gets 401.
+- **All mutations are now transactional** with their audit row. Previously a failed audit
+  insert would have left an unaudited change.
+- Public ID: two migrations (`0002` custom function, `0003` column), so drizzle-kit's
+  snapshot stays accurate. The retry's error handling was verified against real Postgres:
+  Drizzle wraps the error, and the cause carries `23505` + the constraint name.
+- Row numbers are **spreadsheet rows**, not file lines (a multi-line comment is one row).
+- 4-digit FIPS codes are left-padded, since Excel strips leading zeros. County names match
+  case-insensitively, ignoring "County"/"Parish" and Saint/St./St spelling. Names that
+  are genuinely ambiguous (Richmond, VA: county vs city) are errors naming both FIPS codes.
+- The template's example row carries a sentinel comment, and the importer refuses it, so
+  importing the template unedited can't create a detection.
+- In-file duplicates offer "skip this row" / "keep both" only; "replace the earlier row" is
+  done by editing the file.
+- The public download link is in the feed header for now; 5C moves it into the control bar.
+- Known gap: `counties.name` is Census NAME, not NAMELSAD, so "Baltimore city" and
+  "Baltimore County" both normalise to "baltimore". Such rows need `county_fips`.
 
 ### Wave 2 — depends on Waves 0 and 1 (5C, then 5F)
 
@@ -428,3 +453,7 @@ Append one line per working session: date, what moved, what's next.
   view buttons, detections-only selection, tooltips, live theme rebuild, dark basemap, full
   county names in the topology. 65 unit / 38 e2e green; screenshot-verified light/dark with
   and without basemap. Next: 5D (public ID, CSV export/import).
+- 2026-09-22 — 5D done: public IDs, CSV download, duplicate-safe import with review and
+  conflict choices, same-day warning on the single-entry form. Also: admin guard in hooks
+  (covers actions/endpoints), transactional mutations. 103 unit / 49 e2e green.
+  Next: Wave 2 — 5C (control panel + county labels), then 5F (save map image).

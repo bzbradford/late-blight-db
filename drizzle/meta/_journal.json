@@ -15,6 +15,20 @@
       "when": 1789142054587,
       "tag": "0001_material_patch",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790119539088,
+      "tag": "0002_public_id_function",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790119560612,
+      "tag": "0003_public_id_column",
+      "breakpoints": true
     }
   ]
 }

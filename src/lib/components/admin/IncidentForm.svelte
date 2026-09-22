@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 	import { Button } from '$lib/components/ui/button';
 	import type { CountyOption } from '$lib/server/queries/admin';
 	import type { Disease } from '$lib/server/queries/diseases';
@@ -15,6 +16,11 @@
 		maxDate: string;
 		/** Form action to post to. Omit for a page whose action is the default one. */
 		action?: string;
+		/**
+		 * Active detections with the same disease, county, and date. When present, saving
+		 * needs an explicit "add anyway" — see `/admin/incidents/new`.
+		 */
+		duplicates?: { id: number; publicId: string; crop: string | null; strain: string | null }[];
 	};
 
 	let {
@@ -25,7 +31,8 @@
 		errors = {},
 		submitLabel,
 		maxDate,
-		action
+		action,
+		duplicates = []
 	}: Props = $props();
 
 	let submitting = $state(false);
@@ -171,5 +178,32 @@
 		{#if errors.comments}<p class="text-sm text-destructive">{errors.comments}</p>{/if}
 	</div>
 
-	<Button type="submit" disabled={submitting}>{submitting ? 'Saving…' : submitLabel}</Button>
+	{#if duplicates.length}
+		<div role="alert" class="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
+			<p class="font-medium">
+				{duplicates.length === 1 ? 'A detection' : `${duplicates.length} detections`} of this disease
+				in this county on this date already {duplicates.length === 1 ? 'exists' : 'exist'}:
+			</p>
+			<ul class="mt-1.5 space-y-0.5">
+				{#each duplicates as d (d.id)}
+					<li>
+						<a
+							href={resolve('/admin/incidents/[id]', { id: String(d.id) })}
+							class="font-mono text-xs underline">{d.publicId}</a
+						>
+						{[d.crop, d.strain].filter(Boolean).join(' · ') || ''}
+					</li>
+				{/each}
+			</ul>
+			<p class="mt-1.5 text-muted-foreground">
+				If this is a separate confirmation (a different crop or field, say), add it anyway.
+				Otherwise edit the existing one instead.
+			</p>
+		</div>
+		<Button type="submit" name="confirmDuplicate" value="yes" disabled={submitting}>
+			{submitting ? 'Saving…' : 'Add anyway'}
+		</Button>
+	{:else}
+		<Button type="submit" disabled={submitting}>{submitting ? 'Saving…' : submitLabel}</Button>
+	{/if}
 </form>

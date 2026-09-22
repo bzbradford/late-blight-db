@@ -22,5 +22,6 @@
 		errors={form?.errors ?? {}}
 		submitLabel="Add detection"
 		maxDate={data.maxDate}
+		duplicates={form?.duplicates ?? []}
 	/>
 </main>

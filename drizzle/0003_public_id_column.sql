@@ -1,0 +1,2 @@
+ALTER TABLE "incidents" ADD COLUMN "public_id" char(5) DEFAULT gen_public_id() NOT NULL;--> statement-breakpoint
+ALTER TABLE "incidents" ADD CONSTRAINT "incidents_public_id_unique" UNIQUE("public_id");

@@ -19,6 +19,10 @@
 	const view = untrack(() => new ViewState(data, data.selectedCounty));
 
 	let mode = $derived(symbologyMode(view.year));
+
+	let downloadHref = $derived(
+		`${resolve('/detections.csv')}?${new URLSearchParams({ disease: view.disease, year: String(view.year) })}`
+	);
 	let activeDiseaseName = $derived(data.diseases.find((d) => d.slug === view.disease)?.name ?? '');
 
 	/**
@@ -117,6 +121,7 @@
 				selectedCounty={view.selectedCounty}
 				diseaseName={activeDiseaseName}
 				year={view.year}
+				{downloadHref}
 				onSelect={(fips) => view.select(fips)}
 			/>
 		</aside>

@@ -60,8 +60,14 @@ export function today(now = new Date()): string {
 	return `${y}-${m}-${d}`;
 }
 
+/**
+ * Anything with FormData's `get`. The CSV importer passes a plain adapter, so an imported
+ * row goes through exactly the rules the form does.
+ */
+export type FieldSource = { get(name: string): FormDataEntryValue | null };
+
 export function parseIncident(
-	data: FormData,
+	data: FieldSource,
 	options: { todayIso?: string } = {}
 ): { values: IncidentInput; errors: FieldErrors } {
 	const todayIso = options.todayIso ?? today();

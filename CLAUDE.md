@@ -122,8 +122,10 @@ APIs. It runs behind whatever reverse proxy the extension server provides.
 
 - `src/lib/server/db/schema.ts` — Drizzle schema; single source of truth for the data model
 - `src/lib/server/auth.ts` — Better Auth config. `disableSignUp` stays on.
-- `src/routes/admin/+layout.server.ts` — the single guard for the whole admin area. Put new
-  admin pages under `/admin` so they inherit it rather than carrying their own check.
+- `src/hooks.server.ts` (`guardAdmin`) — the single guard for the whole admin area: pages,
+  form actions, and `+server.ts` endpoints. Put new admin routes under `/admin` so they
+  inherit it. (`src/routes/admin/+layout.server.ts` also redirects, but a layout `load`
+  never runs for actions or endpoints, so on its own it is not a guard.)
 - `scripts/create-admin.ts` — the only way an account is created. It uses Better Auth's
   server context (`auth.$context`) rather than the sign-up endpoint, so it works with
   `disableSignUp` on. It cannot import `src/lib/server/auth.ts`, which depends on
@@ -133,8 +135,18 @@ APIs. It runs behind whatever reverse proxy the extension server provides.
   `shadcn-svelte add`. Do not hand-edit; lint rules are scoped off for this directory in
   `eslint.config.js`.
 - `src/lib/validation/incident.ts` — validation shared by the form and the server action
-- `src/lib/server/queries/admin.ts` — admin reads and all four mutations; every mutation
-  writes an `audit_log` row, so add new ones there rather than calling `db` from a route
+- `src/lib/server/queries/admin.ts` — admin reads and every mutation (including
+  `applyImport`); each mutation runs in a transaction with its `audit_log` row, so add new
+  ones there rather than calling `db` from a route. Inserts go through `insertIncident`,
+  which retries on a `public_id` collision inside a savepoint.
+- `incidents.public_id` — the 5-character ID the public sees (CSV `id` column), generated
+  by `gen_public_id()` in Postgres. The serial `id` stays internal. The alphabet lives in
+  both `drizzle/0002_public_id_function.sql` and `src/lib/public-id.ts`; a test holds
+  them together.
+- `src/lib/csv/columns.ts` — the one CSV column spec for download, template, and import.
+  `src/lib/import/` holds the pure import logic (row resolution, classification);
+  `src/lib/server/import.ts` runs it against the database. An import never inserts a
+  possible duplicate without an explicit "keep both".
 - `static/geo/**` — generated TopoJSON; never hand-edit. Regenerate with `pnpm build:geo`.
 - `scripts/build-geo.ts` — the only thing that writes `static/geo/` and `scripts/data/counties.csv`
 - `scripts/seed.ts` — reference data, safe in production; `scripts/seed-dev.ts` truncates incidents

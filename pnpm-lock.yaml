@@ -23,6 +23,9 @@ importers:
       maplibre-gl:
         specifier: ^6.9.0
         version: 6.9.0
+      papaparse:
+        specifier: ^5.7.0
+        version: 5.7.0
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
@@ -63,6 +66,9 @@ importers:
       '@types/node':
         specifier: ^24
         version: 24.13.4
+      '@types/papaparse':
+        specifier: ^5.5.2
+        version: 5.5.2
       '@types/topojson-client':
         specifier: ^3.1.5
         version: 3.1.5
@@ -1709,6 +1715,9 @@ packages:
   '@types/node@24.13.4':
     resolution: {integrity: sha512-YJ7EqCstVTzIr0fMr7qul/977en+pQHrfmuKIo6Zr9i75Be21dr3MovcfvGtyvi2HAUrRerWps5sMO9I7WaxDw==}
 
+  '@types/papaparse@5.5.2':
+    resolution: {integrity: sha512-gFnFp/JMzLHCwRf7tQHrNnfhN4eYBVYYI897CGX4MY1tzY9l2aLkVyx2IlKZ/SAqDbB3I1AOZW5gTMGGsqWliA==}
+
   '@types/proj4@2.5.2':
     resolution: {integrity: sha512-/Nmfn9p08yaYw6xo5f2b0L+2oHk2kZeOkp5v+4VCeNfq+ETlLQbmHmC97/pjDIEZy8jxwz7pdPpwNzDHM5cuJw==}
 
@@ -3056,6 +3065,9 @@ packages:
 
   pako@2.2.0:
     resolution: {integrity: sha512-zJq6RP/5q+TO2OpFV3FHzlPnFjmkb7Nc99a5SNjJE+uu/PkpChs+NIZSSzbBoD+6kjiISXjfYdwj1ZRQ81dz/w==}
+
+  papaparse@5.7.0:
+    resolution: {integrity: sha512-qBGxg/7Q3Kl9Wfhrz2Z74UnvnHTXLNG6jmKJFeBvP2+y4lV7So+7SR62+Zd47JvdrCkX+nDcnr0ObPzek/+6RA==}
 
   parse-headers@2.0.6:
     resolution: {integrity: sha512-Tz11t3uKztEW5FEVZnj1ox8GKblWn+PvHY9TmJV5Mll2uHEwRdR/5Li1OlXoECjLYkApdhWy44ocONwXLiKO5A==}
@@ -5135,6 +5147,10 @@ snapshots:
     dependencies:
       undici-types: 7.18.2
 
+  '@types/papaparse@5.5.2':
+    dependencies:
+      '@types/node': 24.13.4
+
   '@types/proj4@2.5.2': {}
 
   '@types/rbush@4.0.0':
@@ -6530,6 +6546,8 @@ snapshots:
       p-limit: 3.1.0
 
   pako@2.2.0: {}
+
+  papaparse@5.7.0: {}
 
   parse-headers@2.0.6: {}
 

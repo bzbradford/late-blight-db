@@ -1,10 +1,12 @@
-import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { auditLog, counties, diseases, incidents } from '$lib/server/db/schema';
+import type { Choice, ExistingRow, ImportItem } from '$lib/import/classify';
 import type { IncidentInput } from '$lib/validation/incident';
 
 export type AdminIncident = {
 	id: number;
+	publicId: string;
 	diseaseId: number;
 	diseaseName: string;
 	countyFips: string;
@@ -22,6 +24,7 @@ export type AdminIncident = {
 
 const adminColumns = {
 	id: incidents.id,
+	publicId: incidents.publicId,
 	diseaseId: incidents.diseaseId,
 	diseaseName: diseases.name,
 	countyFips: incidents.countyFips,
@@ -128,14 +131,18 @@ export async function listFieldSuggestions(): Promise<{
 
 type Actor = { id: string };
 
+/** A transaction handle, so audit rows commit or roll back with the change they record. */
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 async function writeAudit(
+	tx: Tx,
 	action: string,
 	rowId: number,
 	actor: Actor,
 	before: unknown,
 	after: unknown
 ) {
-	await db.insert(auditLog).values({
+	await tx.insert(auditLog).values({
 		actorId: actor.id,
 		tableName: 'incidents',
 		rowId: String(rowId),
@@ -145,22 +152,70 @@ async function writeAudit(
 	});
 }
 
+async function getIncidentTx(tx: Tx, id: number): Promise<AdminIncident | undefined> {
+	const rows = await tx
+		.select(adminColumns)
+		.from(incidents)
+		.innerJoin(diseases, eq(diseases.id, incidents.diseaseId))
+		.innerJoin(counties, eq(counties.fips, incidents.countyFips))
+		.where(eq(incidents.id, id))
+		.limit(1);
+	return rows[0];
+}
+
+const PUBLIC_ID_ATTEMPTS = 5;
+
+/** Postgres reports a unique violation as SQLSTATE 23505; Drizzle may wrap the error. */
+function isPublicIdCollision(err: unknown): boolean {
+	for (let e: unknown = err; e && typeof e === 'object'; e = (e as { cause?: unknown }).cause) {
+		const { code, constraint_name } = e as { code?: string; constraint_name?: string };
+		if (code === '23505' && constraint_name === 'incidents_public_id_unique') return true;
+	}
+	return false;
+}
+
+/**
+ * Inserts an incident, retrying if the database happens to generate a public ID that is
+ * already taken. The ID space (~10 M) makes that rare, but it is not impossible, and the
+ * unique index — not luck — is what guarantees uniqueness.
+ *
+ * Each attempt runs in a savepoint: in Postgres a failed statement aborts the whole
+ * transaction, so a bare retry would fail on "current transaction is aborted".
+ */
+async function insertIncident(tx: Tx, values: IncidentInput, actor: Actor) {
+	for (let attempt = 1; ; attempt++) {
+		try {
+			return await tx.transaction(async (sp) => {
+				const [row] = await sp
+					.insert(incidents)
+					.values({ ...values, createdBy: actor.id })
+					.returning({ id: incidents.id, publicId: incidents.publicId });
+				return row;
+			});
+		} catch (err) {
+			if (attempt < PUBLIC_ID_ATTEMPTS && isPublicIdCollision(err)) continue;
+			throw err;
+		}
+	}
+}
+
 export async function createIncident(input: IncidentInput, actor: Actor): Promise<number> {
-	const [row] = await db
-		.insert(incidents)
-		.values({ ...input, createdBy: actor.id })
-		.returning({ id: incidents.id });
-	await writeAudit('create', row.id, actor, null, input);
-	return row.id;
+	return db.transaction(async (tx) => {
+		const row = await insertIncident(tx, input, actor);
+		await writeAudit(tx, 'create', row.id, actor, null, input);
+		return row.id;
+	});
 }
 
 export async function updateIncident(id: number, input: IncidentInput, actor: Actor) {
-	const before = await getIncident(id);
-	await db
-		.update(incidents)
-		.set({ ...input, updatedAt: new Date() })
-		.where(eq(incidents.id, id));
-	await writeAudit('update', id, actor, before, input);
+	await db.transaction(async (tx) => {
+		const before = await getIncidentTx(tx, id);
+		await tx
+			.update(incidents)
+			.set({ ...input, updatedAt: new Date() })
+			.where(eq(incidents.id, id));
+		await writeAudit(tx, 'update', id, actor, before, input);
+	});
 }
 
 /**
@@ -169,13 +224,155 @@ export async function updateIncident(id: number, input: IncidentInput, actor: Ac
  * silently orphan the audit trail.
  */
 export async function retractIncident(id: number, actor: Actor) {
-	const before = await getIncident(id);
-	await db.update(incidents).set({ deletedAt: new Date() }).where(eq(incidents.id, id));
-	await writeAudit('retract', id, actor, before, null);
+	await db.transaction(async (tx) => {
+		const before = await getIncidentTx(tx, id);
+		await tx.update(incidents).set({ deletedAt: new Date() }).where(eq(incidents.id, id));
+		await writeAudit(tx, 'retract', id, actor, before, null);
+	});
 }
 
 export async function restoreIncident(id: number, actor: Actor) {
-	const before = await getIncident(id);
-	await db.update(incidents).set({ deletedAt: null }).where(eq(incidents.id, id));
-	await writeAudit('restore', id, actor, before, null);
+	await db.transaction(async (tx) => {
+		const before = await getIncidentTx(tx, id);
+		await tx.update(incidents).set({ deletedAt: null }).where(eq(incidents.id, id));
+		await writeAudit(tx, 'restore', id, actor, before, null);
+	});
+}
+
+// --- CSV import ---------------------------------------------------------------------
+
+/**
+ * Detections an import might touch: those named by public ID, and those sharing a county
+ * and date with an imported row (the classifier narrows that to the exact disease + county
+ * + date key). Retracted rows are included on purpose, so an import can't revive one
+ * without the admin seeing it.
+ */
+export async function findImportCandidates(
+	publicIds: string[],
+	keys: { countyFips: string; observedOn: string }[]
+): Promise<ExistingRow[]> {
+	const fips = [...new Set(keys.map((k) => k.countyFips))];
+	const dates = [...new Set(keys.map((k) => k.observedOn))];
+	const conditions = [
+		publicIds.length ? inArray(incidents.publicId, publicIds) : undefined,
+		fips.length
+			? and(inArray(incidents.countyFips, fips), inArray(incidents.observedOn, dates))
+			: undefined
+	].filter(Boolean);
+	if (conditions.length === 0) return [];
+
+	const rows = await db
+		.select({
+			id: incidents.id,
+			publicId: incidents.publicId,
+			diseaseId: incidents.diseaseId,
+			diseaseName: diseases.name,
+			countyFips: incidents.countyFips,
+			countyName: counties.name,
+			stateUsps: counties.stateUsps,
+			observedOn: incidents.observedOn,
+			reportedOn: incidents.reportedOn,
+			crop: incidents.crop,
+			operationType: incidents.operationType,
+			strain: incidents.strain,
+			comments: incidents.comments,
+			source: incidents.source,
+			updatedAt: incidents.updatedAt,
+			deletedAt: incidents.deletedAt
+		})
+		.from(incidents)
+		.innerJoin(diseases, eq(diseases.id, incidents.diseaseId))
+		.innerJoin(counties, eq(counties.fips, incidents.countyFips))
+		.where(or(...conditions));
+
+	return rows.map(({ diseaseName, countyName, stateUsps, updatedAt, deletedAt, ...r }) => ({
+		...r,
+		updatedAt: updatedAt.toISOString(),
+		deletedAt: deletedAt?.toISOString() ?? null,
+		label: { disease: diseaseName, county: `${countyName}, ${stateUsps}` }
+	}));
+}
+
+export type ImportSummary = { added: number; updated: number; identical: number; kept: number };
+
+/**
+ * Applies a reviewed import in one transaction: every insert and update, and the audit
+ * row for each, commit together or not at all.
+ *
+ * Audit rows use their own actions (`import`, `import-update`) and record the file and
+ * row, so a bulk load can be traced back to its source and reviewed as a unit.
+ */
+export async function applyImport(
+	items: ImportItem[],
+	choices: Map<number, Choice>,
+	actor: Actor,
+	fileName: string
+): Promise<ImportSummary> {
+	const summary: ImportSummary = { added: 0, updated: 0, identical: 0, kept: 0 };
+
+	await db.transaction(async (tx) => {
+		for (const item of items) {
+			const provenance = { file: fileName, row: item.row.row };
+
+			if (item.kind === 'identical') {
+				summary.identical++;
+				continue;
+			}
+
+			const choice =
+				item.kind === 'new' ? 'keep_both' : (choices.get(item.row.row) ?? 'keep_existing');
+			// Choices come from the browser; anything not offered for this row is ignored.
+			if (item.kind === 'conflict' && !item.choices.includes(choice)) {
+				throw new Error(`Row ${item.row.row}: "${choice}" is not an option for this row.`);
+			}
+
+			if (choice === 'keep_existing') {
+				summary.kept++;
+			} else if (choice === 'keep_both') {
+				const row = await insertIncident(tx, item.row.values, actor);
+				await writeAudit(tx, 'import', row.id, actor, null, { ...item.row.values, provenance });
+				summary.added++;
+			} else {
+				// `keep_new` is only offered against exactly one detection in the database.
+				if (item.kind !== 'conflict' || item.match.source !== 'database') {
+					throw new Error(`Row ${item.row.row}: nothing to update.`);
+				}
+				const [target] = item.match.rows;
+				const before = await getIncidentTx(tx, target.id);
+				await tx
+					.update(incidents)
+					.set({ ...item.row.values, updatedAt: new Date() })
+					.where(eq(incidents.id, target.id));
+				await writeAudit(tx, 'import-update', target.id, actor, before, {
+					...item.row.values,
+					provenance
+				});
+				summary.updated++;
+			}
+		}
+	});
+
+	return summary;
+}
+
+/**
+ * Active detections with the same disease, county, and date — what the single-entry form
+ * warns about before saving a likely duplicate.
+ */
+export async function findSameDayDetections(
+	values: Pick<IncidentInput, 'diseaseId' | 'countyFips' | 'observedOn'>
+): Promise<AdminIncident[]> {
+	return db
+		.select(adminColumns)
+		.from(incidents)
+		.innerJoin(diseases, eq(diseases.id, incidents.diseaseId))
+		.innerJoin(counties, eq(counties.fips, incidents.countyFips))
+		.where(
+			and(
+				eq(incidents.diseaseId, values.diseaseId),
+				eq(incidents.countyFips, values.countyFips),
+				eq(incidents.observedOn, values.observedOn),
+				isNull(incidents.deletedAt)
+			)
+		);
 }
