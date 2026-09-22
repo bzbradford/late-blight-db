@@ -12,15 +12,15 @@ Its durable lessons have been folded into `CLAUDE.md`; the summary below is enou
 
 ## Status at a glance
 
-| Phase | Scope                                                  | Status                      |
-| ----- | ------------------------------------------------------ | --------------------------- |
-| 0     | Prerequisites (Postgres roles, GitHub, Chromium libs)  | ✅ Done                     |
-| 1     | Scaffold                                               | ✅ `91febfb`, `e7b915f`     |
-| 2     | Schema (A), geodata (B), shell + symbology (C)         | ✅ `f626b95`, `57c596f`     |
-| 3     | Auth (D), public data layer (E), map (F)               | ✅ `bcdc73c`, `91ea71e`     |
-| 4     | Feed + map/feed linking (G), admin CRUD (H)            | ✅ `c0ea24c`, `be51bff`     |
-| **5** | **Polish — see below**                                 | 🟡 **In progress** (5S ✅)  |
-| 6     | Deploy (systemd, reverse proxy, backups, health check) | ⏸ Blocked on server details |
+| Phase | Scope                                                  | Status                             |
+| ----- | ------------------------------------------------------ | ---------------------------------- |
+| 0     | Prerequisites (Postgres roles, GitHub, Chromium libs)  | ✅ Done                            |
+| 1     | Scaffold                                               | ✅ `91febfb`, `e7b915f`            |
+| 2     | Schema (A), geodata (B), shell + symbology (C)         | ✅ `f626b95`, `57c596f`            |
+| 3     | Auth (D), public data layer (E), map (F)               | ✅ `bcdc73c`, `91ea71e`            |
+| 4     | Feed + map/feed linking (G), admin CRUD (H)            | ✅ `c0ea24c`, `be51bff`            |
+| **5** | **Polish — see below**                                 | 🟡 **In progress** (5S, 5A, 5B ✅) |
+| 6     | Deploy (systemd, reverse proxy, backups, health check) | ⏸ Blocked on server details        |
 
 Phase 6 still needs from the user: SSH/host details for the extension server, the production
 Postgres arrangement, and a `pg_dump` backup destination.
@@ -128,71 +128,94 @@ default URL is always `/`; switching disease/year never shows the previous year'
 
 ### Wave 1 — three parallel tracks
 
-#### Track 5A — Chrome: branding bar, dark mode, sign-in link
+#### Track 5A — Chrome: branding bar, dark mode, sign-in link — ✅ DONE
 
 Owns `src/app.html`, `src/routes/+layout.svelte`, `src/lib/components/shell/BrandBar.svelte`
 (new), `src/lib/components/shell/Header.svelte`, `src/lib/state/theme.svelte.ts` (new).
 
-- [ ] Thin branding bar above the app header: "University of Wisconsin–Madison", white text on
+- [x] Thin branding bar above the app header: "University of Wisconsin–Madison", white text on
       `#c5050c` (≈5.9:1 contrast, passes AA), linked to wisc.edu. Same red in both themes — a
       brand colour, not a theme token. Define it as `--brand-uw` in `layout.css`.
-- [ ] Sun/moon toggle at the far right of the branding bar. Initial theme from
+- [x] Sun/moon toggle at the far right of the branding bar. Initial theme from
       `prefers-color-scheme`; a click stores an explicit choice in `localStorage` (wrapped in
       try/catch). Toggles the existing `.dark` class — the tokens are already defined.
-- [ ] **No flash of the wrong theme:** a tiny inline script in `app.html` sets `.dark` before
+- [x] **No flash of the wrong theme:** a tiny inline script in `app.html` sets `.dark` before
       first paint. Without it, dark-mode users see a white flash on every load.
-- [ ] Expose the resolved theme from `theme.svelte.ts` as a rune (`theme.current`) — Track 5B's
+- [x] Expose the resolved theme from `theme.svelte.ts` as a rune (`theme.current`) — Track 5B's
       map repaint subscribes to it. **Agree this interface before both tracks start.**
-- [ ] Follow OS changes live while the user has not made an explicit choice.
-- [ ] **Sign-in link.** `/login` exists but nothing links to it. Add a low-key "Sign in" link
+- [x] Follow OS changes live while the user has not made an explicit choice.
+- [x] **Sign-in link.** `/login` exists but nothing links to it. Add a low-key "Sign in" link
       in the branding bar (left of the toggle); when signed in it becomes "Administration" +
       a POST sign-out button. Move the existing "Administration" link out of `Header.svelte`.
-- [ ] Hand-roll the theme module (~40 lines) rather than adding `mode-watcher`.
+- [x] Hand-roll the theme module (~40 lines) rather than adding `mode-watcher`.
 
 **Acceptance:** first paint is already in the right theme (check with throttled CPU); toggle
 persists across reload; keyboard-reachable with a label that says what it will switch to.
 
-#### Track 5B — Map interaction: floating controls, selection rules, tooltips
+#### Track 5B — Map interaction: floating controls, selection rules, tooltips — ✅ DONE
 
 Owns `src/lib/components/DetectionMap.svelte`, `src/lib/map/**`, `scripts/build-geo.ts`,
 `static/geo/**` (regenerated only).
 
-- [ ] **Floating controls, top-left:** "Reset view" (the default extent _after_ `expandExtent`,
+- [x] **Floating controls, top-left:** "Reset view" (the default extent _after_ `expandExtent`,
       i.e. exactly what `fitToData` computes today) and "Zoom to detections" (bounds of the
       detection counties). Svelte overlay buttons with lucide icons, not MapLibre `IControl`s,
       so they share the design system. Disable "zoom to detections" when there are none.
-- [ ] Zoom-to-detections uses county **bounding boxes**, not interior points, and caps the zoom
+- [x] Zoom-to-detections uses county **bounding boxes**, not interior points, and caps the zoom
       (~7) so a single detection doesn't zoom to street level.
-- [ ] Move the "basemap unavailable" / "map could not be displayed" notices (currently top-left)
+- [x] Move the "basemap unavailable" / "map could not be displayed" notices (currently top-left)
       to bottom-centre so they don't collide with the new controls.
-- [ ] **Only counties with detections are selectable** (D5). Check `byFips` in the click
+- [x] **Only counties with detections are selectable** (D5). Check `byFips` in the click
       handler; pointer cursor only over counties with data (switch `mouseenter`/`mouseleave` to
       a `mousemove` that reads the hovered feature). This also retires the accessibility gap
       "empty counties are unreachable by keyboard" — they no longer need to be reachable.
-- [ ] **Hover tooltips** via a MapLibre `Popup` (no close button, `closeOnClick: false`) that
+- [x] **Hover tooltips** via a MapLibre `Popup` (no close button, `closeOnClick: false`) that
       follows the pointer. Empty county: **"Riley County, Kansas"** / "No detections in 2026"
       (the _selected_ year). With data: name, "3 detections", and the most recent detection's
       date · crop · strain, omitting null fields rather than printing "—".
-- [ ] The latest detection's crop/strain come from the already-loaded detections (newest
+- [x] The latest detection's crop/strain come from the already-loaded detections (newest
       first): build a `fips → latest Detection` map client-side. **No new query.**
-- [ ] Full county and state names: the TopoJSON carries only `name` ("Riley") and
+- [x] Full county and state names: the TopoJSON carries only `name` ("Riley") and
       `state_usps`. Add `namelsad` ("Riley County", "Orleans Parish", "Richmond city") and
       `state_name` in `build-geo.ts` and regenerate with `pnpm build:geo`. Check the counties
       file stays well under 2 MB. Never hand-edit `static/geo/`.
-- [ ] Touch devices have no hover: a tap on an empty county shows the tooltip; a tap on a
+- [x] Touch devices have no hover: a tap on an empty county shows the tooltip; a tap on a
       detection county selects it (the feed shows the detail).
-- [ ] **Theme-aware repaint** (depends on 5A's `theme.current`). Colours are resolved once at
+- [x] **Theme-aware repaint** (depends on 5A's `theme.current`). Colours are resolved once at
       `addLayer` time, so today a theme switch would leave light-mode colours on a dark page.
       On theme change: re-run `resolveToken()` for every layer and `setPaintProperty`. The
       basemap needs a dark style too — add `PUBLIC_BASEMAP_STYLE_URL_DARK` (default OpenFreeMap
       `dark`). `setStyle()` wipes custom sources and layers, so re-add them and re-apply feature
       state afterwards (the `styledata` pitfall the original plan warned about). Keep all of this
       inside `basemap.ts` + one re-init path — do not scatter theme checks.
-- [ ] Cleanup: `fillColorExpression()` has two stacked doc comments; delete the stale one.
+- [x] Cleanup: `fillColorExpression()` has two stacked doc comments; delete the stale one.
 
 **Acceptance:** screenshot-verified in both themes, with and without `PUBLIC_BASEMAP_STYLE_URL`;
 the MapLibre `error` handler logs nothing after a theme toggle; e2e: clicking an empty county
 selects nothing; hovering shows the right year text.
+
+Notes from 5A/5B implementation:
+
+- Sign-out moved from the admin header into the branding bar, so there is one on every page.
+  The admin header keeps the signed-in email.
+- The brand bar is `--brand-bar-h` tall; full-height pages size to
+  `calc(100dvh - var(--brand-bar-h))`, not `h-screen`, or they scroll by the bar's height.
+- `fallbackStyle()` had a literal `oklch()` background, which is the kind of colour MapLibre
+  silently rejects. It now resolves a new `--map-background` token.
+- `PUBLIC_BASEMAP_STYLE_URL_DARK` added. When it's unset, dark mode uses OpenFreeMap Dark only if
+  the light style is the default (spelled out or not); a custom light style is reused instead.
+- **Layer order:** data layers go after the _last non-label_ basemap layer, not before the
+  first label. OpenFreeMap Dark has an early label layer, and roads were drawing over the
+  county fills.
+- A theme change calls `setStyle(…, { diff: false })` and rebuilds the data layers on
+  `style.load`. Map event handlers are registered map-wide and look the layer up at event time,
+  so they survive the rebuild.
+- `data-map-settled` on the map container marks "county source loaded and not moving". e2e
+  waits on it instead of fixed sleeps. It deliberately isn't `idle`, which waits on every
+  third-party basemap tile.
+- Topology now carries `name` = NAMELSAD and `state_name`; `state_usps` was unused and dropped.
+- Known, not fixed: the legend (bottom-left) can cover a detection county after "zoom to
+  detections" or at the default extent. Revisit in 5E or with the control panel.
 
 #### Track 5D — CSV export and admin import
 
@@ -401,3 +424,7 @@ Append one line per working session: date, what moved, what's next.
 - 2026-09-22 — Track 5S done: view state out of the URL, `/api/view`, Share button, CLAUDE.md
   rule rewritten, fly-to replay bug fixed. check/lint/unit/e2e all green; screenshot-verified.
   Next: Wave 1 (5A, 5B, 5D — parallelisable).
+- 2026-09-22 — 5A and 5B done: brand bar, theme toggle + no-flash script, sign-in link, map
+  view buttons, detections-only selection, tooltips, live theme rebuild, dark basemap, full
+  county names in the topology. 65 unit / 38 e2e green; screenshot-verified light/dark with
+  and without basemap. Next: 5D (public ID, CSV export/import).

@@ -50,8 +50,9 @@
 	/>
 </svelte:head>
 
-<div class="flex h-screen flex-col">
-	<Header diseases={data.diseases} {view} isAdmin={data.isAdmin} />
+<!-- The branding bar sits above this in the root layout; together they fill the viewport. -->
+<div class="flex h-[calc(100dvh-var(--brand-bar-h))] flex-col">
+	<Header diseases={data.diseases} {view} />
 
 	{#if view.error}
 		<p role="alert" class="border-b bg-destructive/10 px-4 py-2 text-sm text-destructive">
@@ -92,7 +93,9 @@
 			<div class="flex-1">
 				<DetectionMap
 					aggregates={view.aggregates}
+					detections={view.detections}
 					{mode}
+					year={view.year}
 					selectedCounty={view.selectedCounty}
 					onSelect={(fips) => view.select(fips)}
 				/>

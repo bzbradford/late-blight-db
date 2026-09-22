@@ -46,17 +46,18 @@ test('clearing the selection unhighlights every card', async ({ page }) => {
 });
 
 test('clicking a county on the map highlights it in the feed', async ({ page }) => {
-	await page.goto('/?disease=late-blight&year=2026');
-	const canvas = page.getByRole('application', { name: 'County detection map' }).locator('canvas');
-	await page.waitForResponse((r) => r.url().includes('/geo/counties.topo.json'));
-	await page.waitForTimeout(3000);
+	// Arriving on Dane centres the map on it; clear, then pick it again by map click.
+	await page.goto(`/?disease=late-blight&year=2026&county=${DANE}`);
+	const region = page.getByRole('application', { name: 'County detection map' });
+	await region.and(page.locator('[data-map-settled]')).waitFor({ timeout: 20_000 });
+	await page.getByRole('button', { name: 'Clear' }).click();
 
-	const box = await canvas.boundingBox();
-	if (!box) throw new Error('no canvas box');
+	const box = await region.boundingBox();
+	if (!box) throw new Error('no map box');
 	await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 
-	// Whatever county was hit, the feed header must reflect the selection.
-	await expect(page.getByRole('button', { name: 'Clear' })).toBeVisible();
+	const cards = page.locator(`li[data-fips="${DANE}"] button`);
+	await expect(cards.first()).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('a year with no detections explains itself', async ({ page }) => {

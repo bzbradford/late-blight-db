@@ -59,15 +59,17 @@ for (const zip of ['cb_2021_us_county_500k.zip', 'cb_2021_us_state_500k.zip']) {
 }
 
 // Counties → TopoJSON. Only the fields the client actually reads survive, so the
-// payload carries no ALAND/AWATER/LSAD ballast.
+// payload carries no ALAND/AWATER/LSAD ballast. `name` is NAMELSAD — "Riley County",
+// "Orleans Parish", "Richmond city" — because the hover tooltip shows it as-is and the
+// bare NAME cannot tell a Virginia independent city from the county around it.
 mapshaper([
 	COUNTY_SHP,
 	'-filter',
 	KEEP_STATES,
 	'-each',
-	'fips=GEOID, name=NAME, state_usps=STUSPS',
+	'fips=GEOID, name=NAMELSAD, state_name=STATE_NAME',
 	'-filter-fields',
-	'fips,name,state_usps',
+	'fips,name,state_name',
 	...SIMPLIFY,
 	'-rename-layers',
 	'counties',

@@ -8,10 +8,9 @@
 	type Props = {
 		diseases: Disease[];
 		view: ViewState;
-		isAdmin?: boolean;
 	};
 
-	let { diseases, view, isAdmin = false }: Props = $props();
+	let { diseases, view }: Props = $props();
 </script>
 
 <header class="border-b bg-background">
@@ -49,14 +48,6 @@
 			</ul>
 		</nav>
 
-		{#if isAdmin}
-			<a
-				href={resolve('/admin')}
-				class="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-			>
-				Administration
-			</a>
-		{/if}
 		<div class="flex items-center gap-2">
 			<span id="year-label" class="text-sm text-muted-foreground">Year</span>
 			<Select.Root

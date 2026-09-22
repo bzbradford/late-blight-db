@@ -13,6 +13,7 @@ test.describe('admin authentication', () => {
 	test('the public map never exposes an admin link to anonymous visitors', async ({ page }) => {
 		await page.goto('/');
 		await expect(page.getByRole('link', { name: 'Administration' })).toHaveCount(0);
+		await expect(page.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login');
 	});
 
 	test('wrong credentials are refused without revealing whether the account exists', async ({

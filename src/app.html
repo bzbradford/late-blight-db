@@ -4,6 +4,24 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
+		<!--
+			Pick the theme before first paint; waiting for hydration flashes the wrong one.
+			An explicit choice (localStorage, key "theme") wins over the OS preference.
+			$lib/state/theme.svelte.ts takes over after hydration and must use the same key.
+		-->
+		<script>
+			(function () {
+				var stored = null;
+				try {
+					stored = localStorage.getItem('theme');
+				} catch (e) {}
+				var dark =
+					stored === 'dark' ||
+					(stored !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+				document.documentElement.classList.toggle('dark', dark);
+				document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

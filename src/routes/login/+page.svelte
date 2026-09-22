@@ -9,7 +9,7 @@
 
 <svelte:head><title>Sign in</title></svelte:head>
 
-<div class="flex min-h-screen items-center justify-center px-4">
+<div class="flex min-h-[calc(100dvh-var(--brand-bar-h))] items-center justify-center px-4">
 	<div class="w-full max-w-sm">
 		<h1 class="text-xl font-semibold tracking-tight">Sign in</h1>
 		<p class="mt-1 text-sm text-muted-foreground">

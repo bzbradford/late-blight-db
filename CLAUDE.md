@@ -55,6 +55,13 @@ matters more than it looks: an unparseable colour does **not** throw — `addLay
 on the map's `error` event and silently skips the layer, leaving a basemap with no data on
 it. Never swallow MapLibre `error` events.
 
+**Theme changes rebuild the map style.** Colours are resolved once per style, so a
+light/dark switch calls `setStyle(…, { diff: false })` and re-adds the data layers on
+`style.load` (`DetectionMap.svelte`, `restyle()`). Anything added to the map must be
+re-creatable from that path, and map event handlers must look layers up at event time rather
+than bind to a layer id. Data layers go above the basemap's last non-label layer, not before
+its first label.
+
 **No PostGIS, and no geometry in the database.** Detections are county-resolution, keyed by
 5-digit FIPS. There is no spatial predicate anywhere in the app. County geometry is a static
 build-time TopoJSON asset under `static/geo/`; the server returns only detection rows, and the
