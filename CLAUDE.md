@@ -12,6 +12,9 @@ The public site is read-only. A small set of extension specialists hold admin ac
 enter detections. The main view is a US county choropleth beside a detection feed; selecting
 a county highlights its detections in the feed and vice versa.
 
+**Work plan and progress live in `plan.md`.** Read it at the start of a session and update its
+checkboxes and session log as work lands.
+
 ## Commands
 
 ```bash
