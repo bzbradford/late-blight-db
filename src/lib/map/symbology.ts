@@ -68,6 +68,16 @@ const TIMING_BINS = [
 
 const TIMING_LEGEND: LegendEntry[] = TIMING_BINS.map(({ token, label }) => ({ token, label }));
 
+/** The legend's heading — shared by the on-screen legend and the saved image. */
+export function legendCaption(mode: SymbologyMode, year: number): string {
+	return mode === 'recency'
+		? 'Time since most recent detection'
+		: `First detection during the ${year} season`;
+}
+
+/** The legend's last row, for counties with no detections. */
+export const NO_DETECTIONS_LABEL = 'No detections reported';
+
 export function legendFor(mode: SymbologyMode): LegendEntry[] {
 	return mode === 'recency' ? RECENCY_LEGEND : TIMING_LEGEND;
 }

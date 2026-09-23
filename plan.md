@@ -12,15 +12,15 @@ Its durable lessons have been folded into `CLAUDE.md`; the summary below is enou
 
 ## Status at a glance
 
-| Phase | Scope                                                  | Status                            |
-| ----- | ------------------------------------------------------ | --------------------------------- |
-| 0     | Prerequisites (Postgres roles, GitHub, Chromium libs)  | ✅ Done                           |
-| 1     | Scaffold                                               | ✅ `91febfb`, `e7b915f`           |
-| 2     | Schema (A), geodata (B), shell + symbology (C)         | ✅ `f626b95`, `57c596f`           |
-| 3     | Auth (D), public data layer (E), map (F)               | ✅ `bcdc73c`, `91ea71e`           |
-| 4     | Feed + map/feed linking (G), admin CRUD (H)            | ✅ `c0ea24c`, `be51bff`           |
-| **5** | **Polish — see below**                                 | 🟡 **In progress** (Waves 0–1 ✅) |
-| 6     | Deploy (systemd, reverse proxy, backups, health check) | ⏸ Blocked on server details       |
+| Phase | Scope                                                  | Status                       |
+| ----- | ------------------------------------------------------ | ---------------------------- |
+| 0     | Prerequisites (Postgres roles, GitHub, Chromium libs)  | ✅ Done                      |
+| 1     | Scaffold                                               | ✅ `91febfb`, `e7b915f`      |
+| 2     | Schema (A), geodata (B), shell + symbology (C)         | ✅ `f626b95`, `57c596f`      |
+| 3     | Auth (D), public data layer (E), map (F)               | ✅ `bcdc73c`, `91ea71e`      |
+| 4     | Feed + map/feed linking (G), admin CRUD (H)            | ✅ `c0ea24c`, `be51bff`      |
+| **5** | **Polish — see below**                                 | 🟡 **Waves 0–2 ✅; 5E left** |
+| 6     | Deploy (systemd, reverse proxy, backups, health check) | ⏸ Blocked on server details  |
 
 Phase 6 still needs from the user: SSH/host details for the extension server, the production
 Postgres arrangement, and a `pg_dump` backup destination.
@@ -393,42 +393,55 @@ Notes from implementation:
 - The labels switch is an `sr-only` checkbox with a styled track, so tests click the visible
   text (as a person would) rather than `.check()` the hidden input.
 
-#### Track 5F — "Save map image" (after 5C; it reads 5C's label data) — next
+#### Track 5F — "Save map image" — ✅ DONE
 
 Owns `src/lib/map/export-image.ts` (new) and the button in `ControlPanel.svelte`.
 
 Screenshots of the page work too, but a built-in export gives newsletter images that are
 consistent week to week, and it always carries the attribution that cropped screenshots lose.
 
-- [ ] **"Save image" button** in the slim control bar, next to Share and Download CSV. It
+- [x] **"Save image" button** in the slim control bar, next to Share and Download CSV. It
       downloads a PNG named like `late-blight-2026-09-22.png`.
-- [ ] **What you see is what you get.** The export uses the current map extent, theme,
+- [x] **What you see is what you get.** The export uses the current map extent, theme,
       labels, and dragged label positions. A fixed-size offscreen render would give identical
       dimensions every week, but it would lose the label arrangement the user just made — and
       that arrangement is the whole point of the labels. Revisit only if the newsletter needs
       a fixed size.
-- [ ] **Resolution:** capture at 2× — temporarily `map.setPixelRatio(2)`, wait for `idle`,
+- [x] **Resolution:** capture at 2× — temporarily `map.setPixelRatio(2)`, wait for `idle`,
       capture, restore — so the image stays sharp in print and on high-DPI screens.
-- [ ] **Capture timing:** read the WebGL canvas inside a `render` callback, or it comes back
+- [x] **Capture timing:** read the WebGL canvas inside a `render` callback, or it comes back
       blank. Prefer that over `preserveDrawingBuffer: true`, which costs performance
       permanently for an occasional action.
-- [ ] **Composition** onto one 2D canvas: the map; leader lines and labels redrawn with the
+- [x] **Composition** onto one 2D canvas: the map; leader lines and labels redrawn with the
       Canvas 2D API from 5C's label data (DOM is not rasterised); legend; a title band
       ("Late blight detections · 2026 · as of Sep 22, 2026"); a footer with
       "University of Wisconsin–Madison" and the **basemap attribution** (OpenStreetMap
       contributors / OpenFreeMap), which the OSM licence requires.
-- [ ] Leave out interaction chrome: the zoom buttons, floating controls, hover tooltip, and
+- [x] Leave out interaction chrome: the zoom buttons, floating controls, hover tooltip, and
       the selected-county outline (clear its filter during capture, then restore it).
-- [ ] Fonts: wait for `document.fonts.ready` before drawing text, or the canvas falls back to
+- [x] Fonts: wait for `document.fonts.ready` before drawing text, or the canvas falls back to
       a default font.
-- [ ] A tip beside the button in dark mode: "Newsletters usually print on white — switch to
-      light mode first." Advice, not enforcement.
-- [ ] If the basemap failed to load, still export (counties only) and keep the attribution
+- [x] A tip in the open panel (and the button's title) in dark mode: newsletters usually
+      print on white, so switch to light mode first. Advice, not enforcement.
+- [x] If the basemap failed to load, still export (counties only) and keep the attribution
       accurate: no OSM credit when no OSM tiles are shown.
 
 **Acceptance:** the PNG matches the screen (labels in their dragged positions), is sharp at 2×,
 includes title, legend, and attribution, and shows no controls or tooltip. Verify by opening
 the file, not only by asserting a download happened.
+
+Notes from implementation:
+
+- `saveImage()` is a method on `DetectionMap` (the page calls it via `bind:this`); the
+  drawing is `composeImage()` in `$lib/map/export-image.ts`, tested in Chromium on real
+  pixels (`export-image.svelte.spec.ts`).
+- **Attribution comes from the attribution control's rendered text**, not the style's
+  sources. OpenFreeMap's credits load from TileJSON at runtime and never appear in the style;
+  the first working export had no OpenStreetMap credit. Caught by looking at the PNG.
+- The idle wait before capture is capped at 8 s, so a slow tile host can't hang the button.
+- The footer shows the site host, so a newsletter reader can find the live map.
+- Legend caption and "No detections reported" moved to `symbology.ts`, shared by the
+  on-screen legend and the image.
 
 ### Wave 3 — remaining polish from the original Phase 5
 
@@ -478,3 +491,6 @@ Append one line per working session: date, what moved, what's next.
 - 2026-09-23 — README now lists the dev admin login. 5C done: accordion control bar, label
   switch and date slider, draggable auto-placed labels, labels in share links. 118 unit /
   55 e2e green; screenshot-verified light/dark and zoomed. Next: 5F (save map image).
+- 2026-09-23 — 5F done: Save image exports a 2× PNG with title, legend, labels as arranged,
+  UW footer, and basemap credit. 123 unit / 56 e2e green; exports checked by eye in both
+  themes. Next: Wave 3 — 5E (accessibility, loading/error states, mobile pass, OG tags).

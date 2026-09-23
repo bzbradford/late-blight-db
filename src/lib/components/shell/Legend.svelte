@@ -1,15 +1,16 @@
 <script lang="ts">
-	import { legendFor, type SymbologyMode } from '$lib/map/symbology';
+	import {
+		legendCaption,
+		legendFor,
+		NO_DETECTIONS_LABEL,
+		type SymbologyMode
+	} from '$lib/map/symbology';
 
 	type Props = { mode: SymbologyMode; year: number };
 	let { mode, year }: Props = $props();
 
 	let entries = $derived(legendFor(mode));
-	let caption = $derived(
-		mode === 'recency'
-			? 'Time since most recent detection'
-			: `First detection during the ${year} season`
-	);
+	let caption = $derived(legendCaption(mode, year));
 </script>
 
 <div class="rounded-lg border bg-background/90 p-3 backdrop-blur">
@@ -31,7 +32,7 @@
 				style="background: var(--county-none)"
 				aria-hidden="true"
 			></span>
-			<span>No detections reported</span>
+			<span>{NO_DETECTIONS_LABEL}</span>
 		</li>
 	</ul>
 </div>

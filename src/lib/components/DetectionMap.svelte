@@ -22,9 +22,13 @@
 	import ScanSearchIcon from '@lucide/svelte/icons/scan-search';
 	import { basemapStyleUrl, fallbackStyle } from '$lib/map/basemap';
 	import { geometryBounds, unionBounds } from '$lib/map/bounds';
+	import { attributionText, composeImage, downloadCanvas } from '$lib/map/export-image';
 	import { defaultExtent, expandExtent, type Extent } from '$lib/map/extent';
 	import {
 		clearColorCache,
+		legendCaption,
+		legendFor,
+		NO_DETECTIONS_LABEL,
 		resolveToken,
 		tokenFor,
 		type CountyAggregate,
@@ -365,6 +369,91 @@
 	function hideTooltip() {
 		popup.remove();
 		tooltipFips = null;
+	}
+
+	// --- Save image ----------------------------------------------------------------------
+
+	/**
+	 * Saves the map as a PNG for a newsletter: the current view and theme, the county
+	 * labels where the admin arranged them, the legend, a title, and credits.
+	 *
+	 * Called by the page through `bind:this`.
+	 */
+	export async function saveImage(opts: { title: string; subtitle: string; fileName: string }) {
+		const m = map;
+		if (!m) return;
+
+		// Sharp in print: at least 2×, more on a high-density screen that already is.
+		const previousRatio = m.getPixelRatio();
+		const scale = Math.max(2, previousRatio);
+		// The selection outline is interaction state, not content.
+		m.setFilter('county-selected', ['==', ['get', 'fips'], '']);
+		m.setPixelRatio(scale);
+
+		try {
+			// Wait for tiles at the new resolution, but never hang on a slow tile host.
+			await Promise.race([m.once('idle'), new Promise((r) => setTimeout(r, 8000))]);
+
+			// A WebGL canvas is cleared after it is composited, so copy it inside the render
+			// callback, while the frame is still there. (`preserveDrawingBuffer` would avoid
+			// this, at a permanent performance cost for an occasional action.)
+			const frame = await new Promise<HTMLCanvasElement>((resolve) => {
+				m.once('render', () => {
+					const source = m.getCanvas();
+					const copy = document.createElement('canvas');
+					copy.width = source.width;
+					copy.height = source.height;
+					copy.getContext('2d')?.drawImage(source, 0, 0);
+					resolve(copy);
+				});
+				m.triggerRepaint();
+			});
+
+			// Text drawn before the web font loads falls back to a default face.
+			await document.fonts.ready;
+
+			// Credits as MapLibre's own attribution control shows them. The style's sources
+			// can't be used: OpenFreeMap's credits arrive in TileJSON at runtime, not in the
+			// style — reading the style gave an image with no OpenStreetMap credit at all.
+			const attribution = basemapFailed
+				? ''
+				: attributionText([
+						container.querySelector('.maplibregl-ctrl-attrib-inner')?.innerHTML ?? ''
+					]);
+
+			const canvas = composeImage({
+				map: frame,
+				cssWidth: m.getCanvas().clientWidth,
+				cssHeight: m.getCanvas().clientHeight,
+				scale,
+				labels: labelLayout,
+				legend: {
+					caption: legendCaption(mode, year),
+					entries: [
+						...legendFor(mode).map((e) => ({ color: resolveToken(e.token), label: e.label })),
+						{ color: resolveToken('--county-none'), label: NO_DETECTIONS_LABEL }
+					]
+				},
+				title: opts.title,
+				subtitle: opts.subtitle,
+				attribution,
+				credit: 'University of Wisconsin–Madison',
+				source: window.location.host,
+				colors: {
+					background: resolveToken('--background'),
+					foreground: resolveToken('--foreground'),
+					muted: resolveToken('--muted-foreground'),
+					border: resolveToken('--border'),
+					card: resolveToken('--card'),
+					brand: resolveToken('--brand-uw')
+				},
+				font: getComputedStyle(document.body).fontFamily
+			});
+			await downloadCanvas(canvas, opts.fileName);
+		} finally {
+			m.setPixelRatio(previousRatio);
+			m.setFilter('county-selected', ['==', ['get', 'fips'], selectedCounty ?? '']);
+		}
 	}
 
 	// --- Setup -------------------------------------------------------------------------

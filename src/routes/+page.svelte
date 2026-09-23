@@ -9,6 +9,8 @@
 	import Header from '$lib/components/shell/Header.svelte';
 	import Legend from '$lib/components/shell/Legend.svelte';
 	import { selectLabels } from '$lib/map/labels';
+	import { formatShortDate } from '$lib/map/tooltip';
+	import { today } from '$lib/validation/incident';
 	import { symbologyMode } from '$lib/map/symbology';
 	import { requestFlyTo } from '$lib/state/selection.svelte';
 	import { ViewState } from '$lib/state/view.svelte';
@@ -26,6 +28,27 @@
 	let labelSelection = $derived(
 		view.labelsSince ? selectLabels(view.detections, view.labelsSince) : null
 	);
+
+	let detectionMap: DetectionMap | undefined = $state();
+
+	/** The saved image's title and file name describe exactly what it shows. */
+	function saveImage() {
+		const todayIso = today();
+		const parts = [
+			view.year === Number(todayIso.slice(0, 4))
+				? `As of ${formatShortDate(todayIso)}`
+				: `${view.year} season`
+		];
+		if (view.labelsSince)
+			parts.push(`labelled: detections since ${formatShortDate(view.labelsSince)}`);
+		return (
+			detectionMap?.saveImage({
+				title: `${activeDiseaseName} detections · ${view.year}`,
+				subtitle: parts.join(' · '),
+				fileName: `${view.disease}-${view.year}-map-${todayIso}.png`
+			}) ?? Promise.resolve()
+		);
+	}
 
 	let downloadHref = $derived(
 		`${resolve('/detections.csv')}?${new URLSearchParams({ disease: view.disease, year: String(view.year) })}`
@@ -69,6 +92,7 @@
 		labelTotal={labelSelection?.total ?? 0}
 		{downloadHref}
 		isAdmin={data.isAdmin}
+		onSaveImage={saveImage}
 	/>
 
 	{#if view.error}
@@ -111,6 +135,7 @@
 		>
 			<div class="flex-1">
 				<DetectionMap
+					bind:this={detectionMap}
 					aggregates={view.aggregates}
 					detections={view.detections}
 					{mode}

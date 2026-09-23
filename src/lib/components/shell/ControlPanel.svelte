@@ -3,8 +3,10 @@
 	import { resolve } from '$app/paths';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import DownloadIcon from '@lucide/svelte/icons/download';
+	import ImageDownIcon from '@lucide/svelte/icons/image-down';
 	import { addDays, daysBetweenIso, MAX_LABELS } from '$lib/map/labels';
 	import { formatShortDate } from '$lib/map/tooltip';
+	import { theme } from '$lib/state/theme.svelte';
 	import type { ViewState } from '$lib/state/view.svelte';
 	import ShareButton from './ShareButton.svelte';
 
@@ -14,11 +16,29 @@
 		labelTotal: number;
 		downloadHref: string;
 		isAdmin: boolean;
+		onSaveImage: () => Promise<void>;
 	};
 
-	let { view, labelTotal, downloadHref, isAdmin }: Props = $props();
+	let { view, labelTotal, downloadHref, isAdmin, onSaveImage }: Props = $props();
 
 	let open = $state(false);
+	let saving = $state(false);
+	let saveError = $state<string | null>(null);
+
+	async function saveImage() {
+		saving = true;
+		saveError = null;
+		try {
+			await onSaveImage();
+		} catch {
+			saveError = "The image couldn't be saved. Try again, or take a screenshot instead.";
+		} finally {
+			saving = false;
+		}
+	}
+
+	const actionClass =
+		'inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[0.8rem] font-medium hover:bg-muted disabled:opacity-50 sm:px-2.5';
 
 	let labelsOn = $derived(view.labelsSince !== null);
 	let jan1 = $derived(`${view.year}-01-01`);
@@ -58,14 +78,35 @@
 				href={downloadHref}
 				download
 				data-sveltekit-reload
-				class="inline-flex h-7 items-center gap-1 rounded-md border px-2.5 text-[0.8rem] font-medium hover:bg-muted"
+				class={actionClass}
+				aria-label="Download CSV"
 			>
-				<DownloadIcon class="size-3.5" aria-hidden="true" /> Download CSV
+				<DownloadIcon class="size-3.5" aria-hidden="true" />
+				<span class="hidden sm:inline">Download CSV</span>
 			</a>
 			<!-- eslint-enable svelte/no-navigation-without-resolve -->
+			<button
+				type="button"
+				class={actionClass}
+				onclick={saveImage}
+				disabled={saving}
+				aria-label="Save map image"
+				title={theme.current === 'dark'
+					? 'Saves in dark mode — newsletters usually print on white'
+					: 'Save the map as an image'}
+			>
+				<ImageDownIcon class="size-3.5" aria-hidden="true" />
+				<span class="hidden sm:inline">{saving ? 'Saving…' : 'Save image'}</span>
+			</button>
 			<ShareButton {view} />
 		</div>
 	</div>
+
+	{#if saveError}
+		<p role="alert" class="border-t bg-destructive/10 px-4 py-1.5 text-xs text-destructive">
+			{saveError}
+		</p>
+	{/if}
 
 	{#if open}
 		<div
@@ -117,6 +158,13 @@
 						{/if}
 					</span>
 				</div>
+			{/if}
+
+			{#if theme.current === 'dark'}
+				<p class="text-xs text-muted-foreground">
+					Saving an image for print? Newsletters are usually white — switch to light mode first (top
+					right).
+				</p>
 			{/if}
 
 			{#if isAdmin}

@@ -107,3 +107,26 @@ test('switching disease keeps labels on, with a fresh window', async ({ page }) 
 	await expect(page.locator('[data-county-label]')).toHaveCount(1);
 	await expect(page.locator('[data-county-label="37117"]')).toBeVisible();
 });
+
+test('"Save image" downloads a PNG at twice the map size, with title and footer', async ({
+	page
+}) => {
+	await openWithLabels(page);
+	const map = await page.getByRole('application', { name: 'County detection map' }).boundingBox();
+	if (!map) throw new Error('no map box');
+
+	const [download] = await Promise.all([
+		page.waitForEvent('download', { timeout: 20_000 }),
+		page.getByRole('button', { name: 'Save map image' }).click()
+	]);
+	expect(download.suggestedFilename()).toMatch(/^late-blight-2026-map-\d{4}-\d{2}-\d{2}\.png$/);
+
+	const bytes = await (await download.createReadStream()).toArray();
+	const png = Buffer.concat(bytes);
+	expect(png.subarray(1, 4).toString()).toBe('PNG');
+	// IHDR: width and height, big-endian, at bytes 16–23.
+	const width = png.readUInt32BE(16);
+	const height = png.readUInt32BE(20);
+	expect(width).toBe(Math.round(map.width) * 2);
+	expect(height).toBe((Math.round(map.height) + 64 + 30) * 2);
+});
