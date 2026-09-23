@@ -13,7 +13,7 @@
 </script>
 
 <header class="border-b bg-background">
-	<div class="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
+	<div class="flex flex-wrap items-center gap-x-3 gap-y-2.5 px-4 py-2.5 sm:gap-x-6 sm:py-3">
 		<!-- A full reload, so the title always returns to the default view, like a fresh visit. -->
 		<a
 			href={resolve('/')}
@@ -24,17 +24,18 @@
 		</a>
 
 		<nav aria-label="Disease" class="order-3 w-full sm:order-none sm:w-auto">
-			<ul class="flex w-full gap-1 rounded-lg bg-muted p-1 sm:w-auto">
+			<!-- Tabs size to their names, so two fit one row at 360 px; a third would wrap. -->
+			<ul class="flex w-full flex-wrap gap-1 rounded-lg bg-muted p-1 sm:w-auto">
 				{#each diseases as disease (disease.slug)}
 					{@const active = disease.slug === view.disease}
-					<li class="flex-1 sm:flex-none">
+					<li class="flex-auto sm:flex-none">
 						<button
 							type="button"
 							aria-pressed={active}
 							onclick={() => !active && view.show(disease.slug, view.year)}
-							class="block w-full rounded-md px-3 py-1.5 text-center text-sm font-medium ring-offset-background transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none {active
+							class="block w-full rounded-md px-2.5 py-1.5 text-center text-sm font-medium whitespace-nowrap ring-offset-background transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none sm:px-3 {active
 								? 'bg-background text-foreground shadow-sm'
-								: 'text-muted-foreground hover:text-foreground'}"
+								: 'text-foreground/65 hover:text-foreground'}"
 						>
 							<span
 								class="mr-1.5 inline-block size-2 rounded-full align-middle"
@@ -48,13 +49,15 @@
 		</nav>
 
 		<div class="flex items-center gap-2">
-			<span id="year-label" class="text-sm text-muted-foreground">Year</span>
+			<span id="year-label" class="sr-only text-sm text-muted-foreground sm:not-sr-only">Year</span>
 			<Select.Root
 				type="single"
 				value={String(view.year)}
 				onValueChange={(value) => value && view.show(view.disease, Number(value))}
 			>
-				<Select.Trigger aria-labelledby="year-label" class="w-24">{view.year}</Select.Trigger>
+				<Select.Trigger aria-labelledby="year-label" class="w-20 sm:w-24"
+					>{view.year}</Select.Trigger
+				>
 				<Select.Content>
 					{#each view.years as year (year)}
 						<Select.Item value={String(year)} label={String(year)}>{year}</Select.Item>

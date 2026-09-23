@@ -12,15 +12,15 @@ Its durable lessons have been folded into `CLAUDE.md`; the summary below is enou
 
 ## Status at a glance
 
-| Phase | Scope                                                  | Status                           |
-| ----- | ------------------------------------------------------ | -------------------------------- |
-| 0     | Prerequisites (Postgres roles, GitHub, Chromium libs)  | ✅ Done                          |
-| 1     | Scaffold                                               | ✅ `91febfb`, `e7b915f`          |
-| 2     | Schema (A), geodata (B), shell + symbology (C)         | ✅ `f626b95`, `57c596f`          |
-| 3     | Auth (D), public data layer (E), map (F)               | ✅ `bcdc73c`, `91ea71e`          |
-| 4     | Feed + map/feed linking (G), admin CRUD (H)            | ✅ `c0ea24c`, `be51bff`          |
-| **5** | **Polish — see below**                                 | 🟡 **Waves 0–2, 5G ✅; 5E left** |
-| 6     | Deploy (systemd, reverse proxy, backups, health check) | ⏸ Blocked on server details      |
+| Phase | Scope                                                  | Status                                     |
+| ----- | ------------------------------------------------------ | ------------------------------------------ |
+| 0     | Prerequisites (Postgres roles, GitHub, Chromium libs)  | ✅ Done                                    |
+| 1     | Scaffold                                               | ✅ `91febfb`, `e7b915f`                    |
+| 2     | Schema (A), geodata (B), shell + symbology (C)         | ✅ `f626b95`, `57c596f`                    |
+| 3     | Auth (D), public data layer (E), map (F)               | ✅ `bcdc73c`, `91ea71e`                    |
+| 4     | Feed + map/feed linking (G), admin CRUD (H)            | ✅ `c0ea24c`, `be51bff`                    |
+| **5** | **Polish — see below**                                 | 🟡 **All tracks ✅; one manual pass left** |
+| 6     | Deploy (systemd, reverse proxy, backups, health check) | ⏸ Blocked on server details                |
 
 Phase 6 still needs from the user: SSH/host details for the extension server, the production
 Postgres arrangement, and a `pg_dump` backup destination.
@@ -537,24 +537,53 @@ address bar stays `/` throughout. ✅ Screenshot-checked light/dark (feed, detai
 
 ### Wave 3 — remaining polish from the original Phase 5
 
-#### Track 5E — Accessibility, loading, and meta
+#### Track 5E — Accessibility, loading, and meta — ✅ DONE
 
-- [ ] Keyboard path: the feed already reaches every selectable county (all selectable counties
-      now have detections — see 5B). Add an ARIA live region announcing selection changes.
-- [ ] Contrast-check the recency and timing ramps in both themes, including against the
-      dark basemap.
-- [ ] Loading state for the map while TopoJSON loads; `+error.svelte` for the root route.
-- [ ] Mobile pass at 360 px: brand bar + header + slim panel + map must leave a usable map.
-- [ ] `<title>` is done; add Open Graph tags so shared links preview sensibly.
-- [ ] Lighthouse accessibility run; record the score here.
+- [x] Keyboard path: the feed reaches every selectable county. A polite live region in
+      `+page.svelte` announces "Selected Dane, WI: 2 detections.", "Selection cleared.",
+      and "Showing cucurbit downy mildew, 2026: 4 detections." Silent on arrival.
+- [x] Ramps contrast-checked in both themes with the dataviz ordinal validator (monotone
+      lightness, ≥ 0.06 per step, light end ≥ 2:1 on the surface). Recency passed after 5G.
+      **Timing failed and was re-stepped**: in light mode October's pale yellow was 1.17:1
+      against the no-data grey (now a gold at L 0.77, 2.1:1 on white); in dark mode the
+      last two steps were 0.056 apart. Counties are opaque fills, so the dark basemap only
+      matters around the edges.
+- [x] Loading state: "Loading map…" (`role="status"`) over the map until the counties are
+      drawn. The topology fetch now starts alongside the basemap style instead of after it.
+      Root `+error.svelte`: 404 vs other errors, with a full-reload link back to the map.
+- [x] Mobile pass at 360 px: title and year share a row ("Year" label is screen-reader-only
+      below `sm`), disease tabs size to their names so both fit one line, and the legend
+      folds into a swatch chip above the attribution. Map height went from ~50% to ~60% of
+      the screen. No horizontal scroll.
+- [x] Open Graph + `twitter:card` tags. Server-rendered from the arrival view, so a Share
+      link previews its own disease/year ("3 confirmed late blight detections in 2025…").
+      No `og:image` — a static image would misstate the data; a rendered one is a follow-up.
+- [x] **Lighthouse accessibility (13.5, mobile emulation): 100** on `/`, `/about`, `/login`,
+      and `/admin` (signed in). The first run gave `/` 96 (inactive disease tab 4.34:1) and
+      `/about` and `/login` 98 (no `<main>` landmark); both fixed.
+- [x] e2e (`a11y.e2e.ts`): announcements, loading state (topology held back), 404 page, OG
+      tags, 360 px layout (no sideways scroll, folded legend, map ≥ 55% of the screen).
+
+Notes:
+
+- Lighthouse ran light mode only. Dark-mode contrast was checked by computation (tokens and
+  validator), not by an audit run.
+- At 360 px portrait the default extent is width-bound, so the US sits small with Canada
+  above it. Acceptable; a portrait-specific extent is possible if it matters in practice.
+- Fetching the topology earlier made `map.e2e.ts`'s response listener racy; it now
+  listens before navigating.
 
 ### Phase 5 verification
 
-- [ ] `pnpm check` 0 errors, `pnpm lint` clean, `pnpm test:unit --run` and `pnpm test:e2e` green.
-- [ ] Screenshots in light and dark, desktop and mobile, basemap on and unset.
+- [x] `pnpm check` 0 errors, `pnpm lint` clean, `pnpm test:unit --run` (140) and
+      `pnpm test:e2e` (73, twice in a row) green.
+- [x] Screenshots in light and dark, desktop and mobile, basemap on and unset (no console
+      errors with it unset).
 - [ ] Full admin loop: sign in from the new link → import a CSV (with one conflict) → detections
       appear → turn on labels, drag one, share the link, open it in a fresh browser → download
-      matches → retract one → it leaves map, labels, and export.
+      matches → retract one → it leaves map, labels, and export. _Covered piecewise by
+      e2e (import with conflict choices, labels + share round trip, retract leaves the
+      map); not yet walked through by hand as one session._
 
 ---
 
@@ -592,3 +621,7 @@ Append one line per working session: date, what moved, what's next.
 - 2026-09-23 — 5G follow-ups: modal Cancel, red Retract, reported-date lockout, searchable
   county picker, red→blue recency ramp, light-by-default theme, "time ago" on dates.
   140 unit / 67 e2e green. Next: 5E.
+- 2026-09-23 — 5E done: live-region announcements, timing ramp re-stepped after the
+  contrast check, map loading state, root error page, 360 px layout, OG tags. Lighthouse
+  a11y 100 on /, /about, /login, /admin. 140 unit / 73 e2e green. Next: a manual
+  end-to-end admin pass, then Phase 6 (still blocked on server details).

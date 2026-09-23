@@ -19,6 +19,7 @@
 	import { feature } from 'topojson-client';
 	import type { FeatureCollection } from 'geojson';
 	import HouseIcon from '@lucide/svelte/icons/house';
+	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import ScanSearchIcon from '@lucide/svelte/icons/scan-search';
 	import { basemapStyleUrl, fallbackStyle } from '$lib/map/basemap';
 	import { geometryBounds, unionBounds } from '$lib/map/bounds';
@@ -486,13 +487,19 @@
 
 		m.addControl(new NavigationControl({ showCompass: false }), 'top-right');
 
-		await m.once('load');
-		if (signal.disposed) return;
-
-		[countyGeo, stateGeo] = await Promise.all([
+		// Fetched alongside the basemap style rather than after it: the topology is the
+		// larger download, and nothing about it depends on the style.
+		const topology = Promise.all([
 			loadTopology('/geo/counties.topo.json', 'counties'),
 			loadTopology('/geo/states.topo.json', 'states')
 		]);
+		// Handled when awaited below; this only stops an early unmount reporting it as unhandled.
+		topology.catch(() => {});
+
+		await m.once('load');
+		if (signal.disposed) return;
+
+		[countyGeo, stateGeo] = await topology;
 		// The component may have unmounted while the topology was in flight.
 		if (signal.disposed) return;
 
@@ -672,6 +679,23 @@
 			<ScanSearchIcon class="size-4" aria-hidden="true" />
 		</button>
 	</div>
+
+	{#if !ready && !initFailed}
+		<div
+			role="status"
+			class="pointer-events-none absolute inset-0 grid place-items-center bg-background/60"
+		>
+			<p
+				class="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm shadow-sm"
+			>
+				<LoaderCircleIcon
+					class="size-4 animate-spin text-muted-foreground motion-reduce:animate-none"
+					aria-hidden="true"
+				/>
+				Loading map…
+			</p>
+		</div>
+	{/if}
 
 	{#if initFailed || basemapFailed}
 		<p

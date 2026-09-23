@@ -74,6 +74,39 @@
 	);
 	let activeDiseaseName = $derived(data.diseases.find((d) => d.slug === view.disease)?.name ?? '');
 
+	/** The address the page was opened at — for `og:url`, before the query is stripped. */
+	const arrivalUrl = page.url.href;
+
+	let previewDescription = $derived(
+		`${view.detections.length} confirmed ${activeDiseaseName.toLowerCase()} ${
+			view.detections.length === 1 ? 'detection' : 'detections'
+		} in ${view.year}, by county, from university extension specialists.`
+	);
+
+	/**
+	 * Spoken summary of the last change: a county selected or cleared, or a new
+	 * disease-year loaded. Empty on arrival, so nothing is read out over the page load.
+	 */
+	let announcement = $state('');
+	let announced = { county: view.selectedCounty, view: `${view.disease}/${view.year}` };
+	$effect(() => {
+		const county = view.selectedCounty;
+		const current = `${view.disease}/${view.year}`;
+		untrack(() => {
+			if (current !== announced.view) {
+				const n = view.detections.length;
+				announcement = `Showing ${activeDiseaseName.toLowerCase()}, ${view.year}: ${n} ${n === 1 ? 'detection' : 'detections'}.`;
+			} else if (county !== announced.county) {
+				const matches = view.detections.filter((d) => d.countyFips === county);
+				announcement =
+					county && matches.length
+						? `Selected ${matches[0].countyName}, ${matches[0].stateUsps}: ${matches.length} ${matches.length === 1 ? 'detection' : 'detections'}.`
+						: 'Selection cleared.';
+			}
+			announced = { county, view: current };
+		});
+	});
+
 	/**
 	 * On narrow screens the map and the feed cannot share the viewport, so they become
 	 * two views behind a switch. On desktop both are visible and this is ignored.
@@ -101,7 +134,20 @@
 		name="description"
 		content="County-level reports of confirmed late blight and cucurbit downy mildew detections in commercial vegetable production."
 	/>
+	<!--
+		Link previews. Crawlers see only the server render, so these describe the view the
+		link opens: a Share link names its disease and year, and the preview says so.
+	-->
+	<meta property="og:type" content="website" />
+	<meta property="og:site_name" content="Vegetable Disease Detections" />
+	<meta property="og:title" content="{activeDiseaseName} detections, {view.year}" />
+	<meta property="og:description" content={previewDescription} />
+	<meta property="og:url" content={arrivalUrl} />
+	<meta name="twitter:card" content="summary" />
 </svelte:head>
+
+<!-- Announces what changed for screen readers; the map itself can't say. -->
+<p class="sr-only" aria-live="polite" aria-atomic="true">{announcement}</p>
 
 <!-- The branding bar sits above this in the root layout; together they fill the viewport. -->
 <div class="flex h-[calc(100dvh-var(--brand-bar-h))] flex-col">
@@ -164,7 +210,11 @@
 					labels={labelSelection?.labels ?? null}
 				/>
 			</div>
-			<div class="absolute bottom-4 left-4 w-56" data-map-obstacle>
+			<!-- On phones the attribution runs to two lines along the bottom; sit above it. -->
+			<div
+				class="absolute bottom-14 left-2.5 max-w-56 md:bottom-4 md:left-4 md:w-56"
+				data-map-obstacle
+			>
 				<Legend {mode} year={view.year} />
 			</div>
 		</section>

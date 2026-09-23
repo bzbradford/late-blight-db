@@ -21,11 +21,14 @@ test('map loads the county topology successfully', async ({ page }) => {
 		if (r.url().includes('/geo/counties.topo.json')) responses.push(r.status());
 	});
 
-	await page.goto('/?disease=late-blight&year=2026');
-	await expect(page.getByRole('application', { name: 'County detection map' })).toBeVisible();
-	await page.waitForResponse((r) => r.url().includes('/geo/counties.topo.json'), {
+	// Listen before navigating: the topology is fetched as the map starts, in parallel with
+	// the basemap, and can arrive before any later listener exists.
+	const topology = page.waitForResponse((r) => r.url().includes('/geo/counties.topo.json'), {
 		timeout: 20_000
 	});
+	await page.goto('/?disease=late-blight&year=2026');
+	await expect(page.getByRole('application', { name: 'County detection map' })).toBeVisible();
+	await topology;
 
 	expect(responses).toContain(200);
 });

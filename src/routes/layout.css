@@ -147,13 +147,18 @@
 	--recency-30: oklch(0.69 0.14 305);
 	--recency-old: oklch(0.77 0.1 255);
 
-	/* Past-season timing ramp: month of the first detection, early to late. */
-	--timing-1: oklch(0.42 0.13 264);
-	--timing-2: oklch(0.53 0.13 225);
-	--timing-3: oklch(0.64 0.12 190);
-	--timing-4: oklch(0.72 0.14 150);
-	--timing-5: oklch(0.81 0.15 110);
-	--timing-6: oklch(0.88 0.16 90);
+	/*
+	 * Past-season timing ramp: month of the first detection, early to late. Multi-hue on
+	 * purpose (blue to gold, like viridis); the order is carried by lightness, which rises
+	 * by at least 0.06 per step. The light end stops at L 0.77 so October still clears 2:1
+	 * against the page — a paler yellow vanished next to the no-data grey.
+	 */
+	--timing-1: oklch(0.38 0.13 264);
+	--timing-2: oklch(0.46 0.13 230);
+	--timing-3: oklch(0.54 0.11 195);
+	--timing-4: oklch(0.62 0.14 150);
+	--timing-5: oklch(0.7 0.15 115);
+	--timing-6: oklch(0.77 0.16 85);
 
 	/* Counties with no detection in the selected disease-year. */
 	--county-none: oklch(0.93 0.003 250);
@@ -174,10 +179,10 @@
 	--recency-old: oklch(0.83 0.09 255);
 
 	--timing-1: oklch(0.48 0.14 264);
-	--timing-2: oklch(0.58 0.13 225);
-	--timing-3: oklch(0.67 0.12 190);
-	--timing-4: oklch(0.75 0.14 150);
-	--timing-5: oklch(0.83 0.15 110);
+	--timing-2: oklch(0.57 0.13 225);
+	--timing-3: oklch(0.66 0.12 190);
+	--timing-4: oklch(0.74 0.14 150);
+	--timing-5: oklch(0.82 0.15 110);
 	--timing-6: oklch(0.89 0.16 90);
 
 	--county-none: oklch(0.3 0.005 250);
