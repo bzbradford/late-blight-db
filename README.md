@@ -56,9 +56,19 @@ pnpm create-admin --email jane@wisc.edu --name "Jane Doe"
 ```
 
 A password is generated and printed once. Supply your own with `--password`, or rotate an
-existing one with `--reset`. `pnpm seed:dev` also provisions a fixed development account
-(`e2e-admin@example.com`) that the end-to-end suite signs in as — which is one reason that
-script refuses to run under `NODE_ENV=production`.
+existing one with `--reset`.
+
+**Development login.** `pnpm seed:dev` provisions a fixed account, which the end-to-end
+suite also signs in as. Sign in at `/login` (or the **Sign in** link in the top bar):
+
+| Email                   | Password                |
+| ----------------------- | ----------------------- |
+| `e2e-admin@example.com` | `e2e-test-password-123` |
+
+These credentials are public — they are committed in `scripts/seed-dev.ts` — which is why
+that script refuses to run under `NODE_ENV=production`, so the account can never exist in a
+real deployment. Note that `pnpm test:e2e` re-runs `seed:dev`, which resets detections to
+the synthetic fixture.
 
 ### Browser tests
 
