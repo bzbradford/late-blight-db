@@ -1,5 +1,7 @@
 import { resolve } from '$app/paths';
+import { defaultLabelSince, labelRangeEnd } from '$lib/map/labels';
 import type { ViewData } from '$lib/server/view';
+import { today } from '$lib/validation/incident';
 
 /**
  * What the public map is showing: disease, year, the data behind them, and the
@@ -21,15 +23,26 @@ export class ViewState {
 	detections = $state.raw<ViewData['detections']>([]);
 	selectedCounty = $state<string | null>(null);
 
+	/**
+	 * County labels (for newsletter screenshots): the earliest detection date to label,
+	 * or null when labels are off. An absolute date, so a shared link shows the same
+	 * labels next week as it does today.
+	 */
+	labelsSince = $state<string | null>(null);
+
+	/** The latest date the label slider can reach — see `labelRangeEnd`. */
+	labelEnd = $derived(labelRangeEnd(this.year, today(), this.detections));
+
 	/** A disease-year switch is in flight. The data shown is still the previous one. */
 	loading = $state(false);
 	error = $state<string | null>(null);
 
 	#inflight: AbortController | null = null;
 
-	constructor(initial: ViewData, selectedCounty: string | null) {
+	constructor(initial: ViewData, selectedCounty: string | null, labelsSince: string | null = null) {
 		this.#apply(initial);
 		this.selectedCounty = selectedCounty;
+		this.labelsSince = labelsSince;
 	}
 
 	#apply(data: ViewData) {
@@ -65,6 +78,11 @@ export class ViewState {
 			// A county selected under one disease-year usually has nothing in another.
 			this.selectedCounty = null;
 			this.#apply(data);
+			// Labels stay on across a switch, but a date in one season means nothing in
+			// another; start the new one from its own default window.
+			if (this.labelsSince !== null) {
+				this.labelsSince = defaultLabelSince(this.year, this.labelEnd);
+			}
 		} catch {
 			// A newer switch superseded this one; it owns the loading and error state now.
 			if (controller.signal.aborted) return;
@@ -81,6 +99,10 @@ export class ViewState {
 		this.selectedCounty = fips;
 	}
 
+	setLabels(on: boolean) {
+		this.labelsSince = on ? defaultLabelSince(this.year, this.labelEnd) : null;
+	}
+
 	/**
 	 * A link that reopens this view in any browser.
 	 *
@@ -93,6 +115,7 @@ export class ViewState {
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams({ disease: this.disease, year: String(this.year) });
 		if (this.selectedCounty) params.set('county', this.selectedCounty);
+		if (this.labelsSince) params.set('since', this.labelsSince);
 		return `${origin}${resolve('/')}?${params}`;
 	}
 }

@@ -3,7 +3,6 @@
 	import * as Select from '$lib/components/ui/select';
 	import type { Disease } from '$lib/server/queries/diseases';
 	import type { ViewState } from '$lib/state/view.svelte';
-	import ShareButton from './ShareButton.svelte';
 
 	type Props = {
 		diseases: Disease[];
@@ -63,7 +62,5 @@
 				</Select.Content>
 			</Select.Root>
 		</div>
-
-		<ShareButton {view} />
 	</div>
 </header>

@@ -30,7 +30,8 @@
 		type CountyAggregate,
 		type SymbologyMode
 	} from '$lib/map/symbology';
-	import { tooltipContent, type TooltipCounty } from '$lib/map/tooltip';
+	import { formatMonthDay, tooltipContent, type TooltipCounty } from '$lib/map/tooltip';
+	import CountyLabels, { type LabelItem, type LabelLayout } from './map/CountyLabels.svelte';
 	import type { Detection } from '$lib/server/queries/detections';
 	import { flyRequest } from '$lib/state/selection.svelte';
 	import { theme, type Theme } from '$lib/state/theme.svelte';
@@ -45,14 +46,31 @@
 		year: number;
 		selectedCounty: string | null;
 		onSelect: (fips: string | null) => void;
+		/** Detections to label (see `selectLabels`), or null when labels are off. */
+		labels: Detection[] | null;
+		/** Out: labels as drawn, for the image export. */
+		labelLayout?: LabelLayout[];
 	};
 
-	let { aggregates, detections, mode, year, selectedCounty, onSelect }: Props = $props();
+	let {
+		aggregates,
+		detections,
+		mode,
+		year,
+		selectedCounty,
+		onSelect,
+		labels,
+		labelLayout = $bindable([])
+	}: Props = $props();
 
 	maplibreConfig.WORKER_URL = maplibreWorkerUrl;
 
 	let container: HTMLDivElement;
 	let map: MapLibreMap | undefined;
+	/** The same map, as state: set once it is ready, so the label overlay can mount. */
+	let liveMap = $state.raw<MapLibreMap | undefined>();
+	/** Full county names ("Dane County") from the topology, for label text. */
+	let countyNames = $state.raw<Map<string, string>>(new Map());
 	let ready = $state(false);
 	/** County data is drawn and the map has stopped moving — it can be hit-tested. */
 	let settled = $state(false);
@@ -97,6 +115,22 @@
 	let stateGeo: FeatureCollection | undefined;
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- filled once, never observed
 	const countyBounds = new Map<string, Extent>();
+
+	let labelItems = $derived.by((): LabelItem[] => {
+		if (!labels) return [];
+		return labels.flatMap((d) => {
+			const aggregate = byFips.get(d.countyFips);
+			if (!aggregate) return [];
+			const name = countyNames.get(d.countyFips) ?? d.countyName;
+			return [
+				{
+					id: d.countyFips,
+					text: `${name}, ${d.stateUsps} · ${formatMonthDay(d.observedOn)}`,
+					lngLat: [aggregate.lon, aggregate.lat]
+				}
+			];
+		});
+	});
 
 	/** The theme the current style was built for. */
 	let appliedTheme: Theme = 'light';
@@ -373,11 +407,16 @@
 		// The component may have unmounted while the topology was in flight.
 		if (signal.disposed) return;
 
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- built once, then replaced whole
+		const names = new Map<string, string>();
 		for (const f of countyGeo.features) {
 			const fips = f.properties?.fips;
+			if (typeof fips !== 'string') continue;
 			const box = f.geometry ? geometryBounds(f.geometry) : null;
-			if (typeof fips === 'string' && box) countyBounds.set(fips, box);
+			if (box) countyBounds.set(fips, box);
+			names.set(fips, String(f.properties?.name ?? ''));
 		}
+		countyNames = names;
 
 		addDataLayers(m);
 
@@ -387,7 +426,8 @@
 			const county = countyAt(m, ev.point);
 			// Only counties with detections are selectable, so only they look clickable.
 			m.getCanvas().style.cursor = county && byFips.has(county.fips) ? 'pointer' : '';
-			if (county) showTooltip(county, ev.lngLat);
+			// While labelling for a screenshot, a tooltip would only end up in the picture.
+			if (county && !labels) showTooltip(county, ev.lngLat);
 			else hideTooltip();
 		});
 		m.on('mouseout', hideTooltip);
@@ -402,10 +442,11 @@
 				onSelect(null);
 			}
 			// Touch screens have no hover, so a tap is the only way to see the tooltip.
-			if (county) showTooltip(county, ev.lngLat);
+			if (county && !labels) showTooltip(county, ev.lngLat);
 		});
 
 		map = m;
+		liveMap = m;
 		applyFeatureState();
 		fitDefault(false);
 		ready = true;
@@ -439,6 +480,7 @@
 			popup.remove();
 			map?.remove();
 			map = undefined;
+			liveMap = undefined;
 			ready = false;
 		};
 	});
@@ -504,7 +546,20 @@
 		data-map-settled={settled ? '' : undefined}
 	></div>
 
+	{#if liveMap && labels}
+		<!-- Keyed on the data, so dragged positions reset when the disease or year changes. -->
+		{#key aggregates}
+			<CountyLabels
+				map={liveMap}
+				items={labelItems}
+				onSelect={(fips) => onSelect(fips)}
+				bind:layout={labelLayout}
+			/>
+		{/key}
+	{/if}
+
 	<div
+		data-map-obstacle
 		class="absolute top-2.5 left-2.5 flex flex-col overflow-hidden rounded-md border bg-background shadow-sm"
 	>
 		<button

@@ -8,12 +8,10 @@
 		selectedCounty: string | null;
 		diseaseName: string;
 		year: number;
-		/** CSV of exactly what the feed lists. */
-		downloadHref: string;
 		onSelect: (fips: string | null) => void;
 	};
 
-	let { detections, selectedCounty, diseaseName, year, downloadHref, onSelect }: Props = $props();
+	let { detections, selectedCounty, diseaseName, year, onSelect }: Props = $props();
 
 	let listEl: HTMLDivElement | undefined = $state();
 
@@ -77,20 +75,6 @@
 				</p>
 				<p class="text-xs text-muted-foreground">{diseaseName}, {year}</p>
 			</div>
-			{#if detections.length}
-				<!-- A file download, so the router must stay out of it. `downloadHref` is already
-				     resolved by the caller. -->
-				<!-- eslint-disable svelte/no-navigation-without-resolve -->
-				<a
-					href={downloadHref}
-					download
-					data-sveltekit-reload
-					class="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
-				>
-					Download CSV
-				</a>
-				<!-- eslint-enable svelte/no-navigation-without-resolve -->
-			{/if}
 		</div>
 
 		{#if selectedCounty}

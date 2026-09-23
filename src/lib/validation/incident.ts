@@ -45,7 +45,7 @@ export function normalizeComments(value: FormDataEntryValue | null): string | nu
 	return trimmed === '' ? null : trimmed;
 }
 
-function isIsoDate(value: string): boolean {
+export function isIsoDate(value: string): boolean {
 	if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
 	const [y, m, d] = value.split('-').map(Number);
 	const date = new Date(Date.UTC(y, m - 1, d));

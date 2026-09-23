@@ -5,8 +5,10 @@
 	import { resolve } from '$app/paths';
 	import DetectionFeed from '$lib/components/DetectionFeed.svelte';
 	import DetectionMap from '$lib/components/DetectionMap.svelte';
+	import ControlPanel from '$lib/components/shell/ControlPanel.svelte';
 	import Header from '$lib/components/shell/Header.svelte';
 	import Legend from '$lib/components/shell/Legend.svelte';
+	import { selectLabels } from '$lib/map/labels';
 	import { symbologyMode } from '$lib/map/symbology';
 	import { requestFlyTo } from '$lib/state/selection.svelte';
 	import { ViewState } from '$lib/state/view.svelte';
@@ -16,9 +18,14 @@
 
 	// `data` is only the arrival view. From here on the view state owns disease, year,
 	// and selection, and `data` is never re-read — the page does not navigate again.
-	const view = untrack(() => new ViewState(data, data.selectedCounty));
+	const view = untrack(() => new ViewState(data, data.selectedCounty, data.labelsSince));
 
 	let mode = $derived(symbologyMode(view.year));
+
+	/** Shared by the panel ("showing 10 of 14") and the map, so the two can't disagree. */
+	let labelSelection = $derived(
+		view.labelsSince ? selectLabels(view.detections, view.labelsSince) : null
+	);
 
 	let downloadHref = $derived(
 		`${resolve('/detections.csv')}?${new URLSearchParams({ disease: view.disease, year: String(view.year) })}`
@@ -57,6 +64,12 @@
 <!-- The branding bar sits above this in the root layout; together they fill the viewport. -->
 <div class="flex h-[calc(100dvh-var(--brand-bar-h))] flex-col">
 	<Header diseases={data.diseases} {view} />
+	<ControlPanel
+		{view}
+		labelTotal={labelSelection?.total ?? 0}
+		{downloadHref}
+		isAdmin={data.isAdmin}
+	/>
 
 	{#if view.error}
 		<p role="alert" class="border-b bg-destructive/10 px-4 py-2 text-sm text-destructive">
@@ -90,7 +103,9 @@
 			? 'opacity-50'
 			: ''}"
 	>
+		<!-- data-map-root: the scope in which county labels look for things to avoid. -->
 		<section
+			data-map-root
 			aria-label="Detection map"
 			class="relative min-h-0 flex-1 {mobileView === 'map' ? 'flex' : 'hidden'} md:flex"
 		>
@@ -102,9 +117,10 @@
 					year={view.year}
 					selectedCounty={view.selectedCounty}
 					onSelect={(fips) => view.select(fips)}
+					labels={labelSelection?.labels ?? null}
 				/>
 			</div>
-			<div class="absolute bottom-4 left-4 w-56">
+			<div class="absolute bottom-4 left-4 w-56" data-map-obstacle>
 				<Legend {mode} year={view.year} />
 			</div>
 		</section>
@@ -121,7 +137,6 @@
 				selectedCounty={view.selectedCounty}
 				diseaseName={activeDiseaseName}
 				year={view.year}
-				{downloadHref}
 				onSelect={(fips) => view.select(fips)}
 			/>
 		</aside>

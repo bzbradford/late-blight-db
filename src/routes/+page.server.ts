@@ -1,5 +1,6 @@
 import { listDiseases } from '$lib/server/queries/diseases';
 import { loadView } from '$lib/server/view';
+import { isIsoDate } from '$lib/validation/incident';
 import type { PageServerLoad } from './$types';
 
 /**
@@ -19,5 +20,10 @@ export const load: PageServerLoad = async ({ url }) => {
 	const county = url.searchParams.get('county');
 	const selectedCounty = view.aggregates.some((a) => a.fips === county) ? county : null;
 
-	return { ...view, selectedCounty };
+	// Labels on, from this date. Only a real date inside the season shown is accepted.
+	const since = url.searchParams.get('since');
+	const labelsSince =
+		since && isIsoDate(since) && since.startsWith(`${view.activeYear}-`) ? since : null;
+
+	return { ...view, selectedCounty, labelsSince };
 };

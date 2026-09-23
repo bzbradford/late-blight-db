@@ -335,7 +335,7 @@ Notes from implementation:
 
 ### Wave 2 — depends on Waves 0 and 1 (5C, then 5F)
 
-#### Track 5C — Control panel and county labels
+#### Track 5C — Control panel and county labels — ✅ DONE
 
 Owns `src/lib/components/shell/ControlPanel.svelte` (new), `src/lib/map/labels.ts` (new),
 `src/lib/components/map/CountyLabels.svelte` (new), `src/routes/+page.svelte`, and a
@@ -343,39 +343,57 @@ mount point in `DetectionMap.svelte`.
 
 **Panel**
 
-- [ ] A slim bar between the header and the map/feed. Always visible: a "Map tools" toggle
+- [x] A slim bar between the header and the map/feed. Always visible: a "Map tools" toggle
       (chevron), **Share** (from 5S), and **Download CSV**. Expanded, it slides open and pushes
       the page down, showing:
   - a "Label counties with detections" switch;
   - when the switch is on, the recency slider and the "Showing 10 of 14" note;
   - for admins, an "Import CSV" link to `/admin/import`.
-- [ ] Use Svelte's `slide` transition. Confirm MapLibre follows the container's height change
+- [x] Use Svelte's `slide` transition. Confirm MapLibre follows the container's height change
       (v6 watches its container with a ResizeObserver). If it doesn't, call `map.resize()`
       when the transition ends.
 
 **Labels**
 
-- [ ] Slider: picks a start date, snapping to days. Range: Jan 1 of the selected year to
+- [x] Slider: picks a start date, snapping to days. Range: Jan 1 of the selected year to
       today (current year) or to the last detection (past years). Beside it, show the date and
       how many days back it is: "Since Sep 15 · last 7 days". **Default when first turned on:
       the last 7 days**, to match a weekly newsletter.
-- [ ] `selectLabels(detections, since, max = MAX_LABELS)` in `labels.ts` — pure and
+- [x] `selectLabels(detections, since, max = MAX_LABELS)` in `labels.ts` — pure and
       unit-tested: filter by date, one per county, newest first, take `MAX_LABELS = 10`.
-- [ ] Label text: "Dane County, WI · Sep 3". Crop is a possible later addition.
-- [ ] **Placement for screenshots:** labels start at an offset that points away from nearby
+- [x] Label text: "Dane County, WI · Sep 3". Crop is a possible later addition.
+- [x] **Placement for screenshots:** labels start at an offset that points away from nearby
       labels. A simple nudge pass in screen space removes overlaps. **Each label can be
       dragged** to fine-tune it before a screenshot, and its leader line follows. Drag
       offsets are kept per county until disease or year changes.
-- [ ] Leader lines are an SVG overlay over the map, redrawn on map `move` and on drag. Clicking
+- [x] Leader lines are an SVG overlay over the map, redrawn on map `move` and on drag. Clicking
       a label selects its county, as a feed card does. The rest of the map stays clickable.
-- [ ] While labels are on, hide the hover tooltip, so the pointer doesn't end up in the
+- [x] While labels are on, hide the hover tooltip, so the pointer doesn't end up in the
       screenshot.
 
 **Acceptance:** never more than 10 labels; the slider updates labels without refetching; no
 label overlaps another after placement at the default extent; labels, lines, and drag survive
 pan and zoom; the Share link reproduces the labels.
 
-#### Track 5F — "Save map image" (after 5C; it reads 5C's label data)
+Notes from implementation:
+
+- Label state (`labelsSince`, null = off) lives in `ViewState`; Share adds `since=`, and
+  `+page.server.ts` accepts it only as a real date inside the season shown. A disease/year
+  switch keeps labels on but resets the window to that season's default.
+- `placeLabels` tries eight directions, starting from "away from the group", and takes the
+  first that fits inside the viewport without covering its own county point or an obstacle.
+  Only then does it push overlaps apart. Without the candidate step, labels near an edge
+  were clamped back onto their own county (caught by screenshot, now covered by a unit test).
+- Obstacles are found by DOM query: anything marked `data-map-obstacle` (view buttons,
+  legend) or `.maplibregl-ctrl`, within the `data-map-root` section.
+- Labels re-place on `moveend`/`resize`; dragged ones never move. Arrow keys nudge a focused
+  label (Shift for bigger steps); Enter selects its county.
+- `CountyLabels` exposes `bind:layout` (anchor + box per label, in container pixels) for 5F.
+- Share and Download CSV moved into the bar; the feed-header download link was removed.
+- The labels switch is an `sr-only` checkbox with a styled track, so tests click the visible
+  text (as a person would) rather than `.check()` the hidden input.
+
+#### Track 5F — "Save map image" (after 5C; it reads 5C's label data) — next
 
 Owns `src/lib/map/export-image.ts` (new) and the button in `ControlPanel.svelte`.
 
@@ -457,3 +475,6 @@ Append one line per working session: date, what moved, what's next.
   conflict choices, same-day warning on the single-entry form. Also: admin guard in hooks
   (covers actions/endpoints), transactional mutations. 103 unit / 49 e2e green.
   Next: Wave 2 — 5C (control panel + county labels), then 5F (save map image).
+- 2026-09-23 — README now lists the dev admin login. 5C done: accordion control bar, label
+  switch and date slider, draggable auto-placed labels, labels in share links. 118 unit /
+  55 e2e green; screenshot-verified light/dark and zoomed. Next: 5F (save map image).

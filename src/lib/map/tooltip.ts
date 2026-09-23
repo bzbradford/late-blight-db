@@ -22,6 +22,12 @@ export function formatShortDate(iso: string, locale?: string): string {
 	});
 }
 
+/** `2026-09-19` → `Sep 19`. Labels sit under a title that already names the year. */
+export function formatMonthDay(iso: string, locale?: string): string {
+	const [y, m, d] = iso.split('-').map(Number);
+	return new Date(y, m - 1, d).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+}
+
 /**
  * @param count   detections in this county for the disease-year; 0 for none
  * @param latest  the county's most recent detection, when it has any
