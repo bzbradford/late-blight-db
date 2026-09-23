@@ -64,6 +64,17 @@ export async function listIncidents(filters: {
 		.orderBy(desc(incidents.observedOn), desc(incidents.id));
 }
 
+/**
+ * Every year with a detection, newest first, for the admin year filter. Retracted rows
+ * count — the filter must be able to reach them — and so do all diseases, so the list
+ * does not shift as the disease filter changes.
+ */
+export async function listIncidentYears(): Promise<number[]> {
+	const year = sql<number>`extract(year from ${incidents.observedOn})::int`;
+	const rows = await db.selectDistinct({ year }).from(incidents).orderBy(desc(year));
+	return rows.map((r) => Number(r.year));
+}
+
 export async function getIncident(id: number): Promise<AdminIncident | undefined> {
 	const rows = await db
 		.select(adminColumns)

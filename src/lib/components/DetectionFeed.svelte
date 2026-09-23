@@ -1,5 +1,10 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import Maximize2Icon from '@lucide/svelte/icons/maximize-2';
+	import { feedSections } from '$lib/feed/sections';
+	import { timeAgo } from '$lib/feed/time-ago';
+	import type { SymbologyMode } from '$lib/map/symbology';
+	import { formatMonthDay } from '$lib/map/tooltip';
 	import { requestFlyTo } from '$lib/state/selection.svelte';
 	import type { Detection } from '$lib/server/queries/detections';
 
@@ -8,26 +13,17 @@
 		selectedCounty: string | null;
 		diseaseName: string;
 		year: number;
+		mode: SymbologyMode;
 		onSelect: (fips: string | null) => void;
+		onExpand: (detection: Detection) => void;
 	};
 
-	let { detections, selectedCounty, diseaseName, year, onSelect }: Props = $props();
+	let { detections, selectedCounty, diseaseName, year, mode, onSelect, onExpand }: Props = $props();
 
 	let listEl: HTMLDivElement | undefined = $state();
 
-	/** Newest first, grouped so a county reported several times reads as one day's news. */
-	let groups = $derived.by(() => {
-		// Rebuilt from scratch on every derivation and never mutated afterwards, so the
-		// reactive SvelteMap wrapper would only add overhead.
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const byDate = new Map<string, Detection[]>();
-		for (const d of detections) {
-			const existing = byDate.get(d.observedOn);
-			if (existing) existing.push(d);
-			else byDate.set(d.observedOn, [d]);
-		}
-		return [...byDate.entries()].sort((a, b) => b[0].localeCompare(a[0]));
-	});
+	/** Sections match the legend beside the map, so a card sits under its county's colour. */
+	let sections = $derived(feedSections(detections, mode));
 
 	let selectedCount = $derived(
 		selectedCounty ? detections.filter((d) => d.countyFips === selectedCounty).length : 0
@@ -41,15 +37,6 @@
 				})()
 			: null
 	);
-
-	function formatDate(iso: string) {
-		const [y, m, d] = iso.split('-').map(Number);
-		return new Date(y, m - 1, d).toLocaleDateString(undefined, {
-			month: 'long',
-			day: 'numeric',
-			year: 'numeric'
-		});
-	}
 
 	/**
 	 * Bring the first detection for the selected county into view. Runs whenever the
@@ -105,59 +92,82 @@
 				an absence of disease — it may simply mean nothing was reported.
 			</p>
 		{:else}
-			{#each groups as [date, items] (date)}
-				<section>
+			{#each sections as section (section.token)}
+				<section aria-labelledby="feed-{section.token}">
 					<h2
-						class="sticky top-0 bg-muted/60 px-4 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur"
+						id="feed-{section.token}"
+						class="sticky top-0 z-10 flex items-center gap-2 bg-muted/80 px-4 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur"
 					>
-						{formatDate(date)}
+						<span
+							class="inline-block size-2.5 shrink-0 rounded-sm border border-border"
+							style="background: var({section.token})"
+							aria-hidden="true"
+						></span>
+						<span class="mr-auto">{section.label}</span>
+						{#if section.items.length}
+							<span class="tabular-nums">{section.items.length}</span>
+						{/if}
 					</h2>
-					<ul>
-						{#each items as detection (detection.id)}
-							{@const active = detection.countyFips === selectedCounty}
-							<li data-fips={detection.countyFips} class="border-b last:border-b-0">
-								<button
-									type="button"
-									aria-pressed={active}
-									class="w-full border-l-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 {active
-										? 'border-l-foreground bg-muted'
-										: 'border-l-transparent'}"
-									onclick={() => {
-										onSelect(active ? null : detection.countyFips);
-										if (!active) requestFlyTo(detection.countyFips);
-									}}
-								>
-									<p class="flex items-baseline justify-between gap-2">
-										<span class="text-sm font-medium">
-											{detection.countyName}, {detection.stateUsps}
-										</span>
-										<!-- The ID in the CSV download, so a spreadsheet row can be found here. -->
-										<span class="font-mono text-[11px] text-muted-foreground">
-											{detection.publicId}
-										</span>
-									</p>
-
-									{#if detection.crop || detection.operationType || detection.strain}
-										<p class="mt-1 flex flex-wrap gap-1">
-											{#each [detection.crop, detection.operationType, detection.strain].filter(Boolean) as tag (tag)}
-												<span class="rounded bg-secondary px-1.5 py-0.5 text-xs">{tag}</span>
-											{/each}
+					{#if section.items.length === 0}
+						<p class="border-b px-4 py-2.5 text-xs text-muted-foreground">No detections</p>
+					{:else}
+						<ul>
+							{#each section.items as detection (detection.id)}
+								{@const active = detection.countyFips === selectedCounty}
+								{@const place = `${detection.countyName}, ${detection.stateUsps}`}
+								<li data-fips={detection.countyFips} class="relative border-b">
+									<button
+										type="button"
+										aria-pressed={active}
+										class="w-full border-l-3 py-3 pr-12 pl-4 text-left transition-colors hover:bg-muted/50 {active
+											? 'border-l-foreground bg-muted'
+											: 'border-l-transparent'}"
+										onclick={() => {
+											onSelect(active ? null : detection.countyFips);
+											if (!active) requestFlyTo(detection.countyFips);
+										}}
+									>
+										<p class="flex flex-wrap items-baseline gap-x-2">
+											<span class="text-sm font-medium">{place}</span>
+											<time datetime={detection.observedOn} class="text-xs text-muted-foreground">
+												{formatMonthDay(detection.observedOn)}
+												({timeAgo(detection.observedOn)})
+											</time>
 										</p>
-									{/if}
 
-									{#if detection.comments}
-										<p class="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-											{detection.comments}
-										</p>
-									{/if}
+										{#if detection.crop || detection.operationType || detection.strain}
+											<p class="mt-1 flex flex-wrap gap-1">
+												{#each [detection.crop, detection.operationType, detection.strain].filter(Boolean) as tag (tag)}
+													<span class="rounded bg-secondary px-1.5 py-0.5 text-xs">{tag}</span>
+												{/each}
+											</p>
+										{/if}
 
-									{#if detection.source}
-										<p class="mt-1 text-xs text-muted-foreground italic">{detection.source}</p>
-									{/if}
-								</button>
-							</li>
-						{/each}
-					</ul>
+										{#if detection.comments}
+											<!-- The full text is in the detail view. -->
+											<p class="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+												{detection.comments}
+											</p>
+										{/if}
+
+										{#if detection.source}
+											<p class="mt-1 text-xs text-muted-foreground italic">{detection.source}</p>
+										{/if}
+									</button>
+									<!-- A sibling, not a child: a button cannot contain another button. -->
+									<button
+										type="button"
+										class="absolute top-2 right-2 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+										aria-label="Details: {place}, {formatMonthDay(detection.observedOn)}"
+										title="Show details"
+										onclick={() => onExpand(detection)}
+									>
+										<Maximize2Icon class="size-3.5" />
+									</button>
+								</li>
+							{/each}
+						</ul>
+					{/if}
 				</section>
 			{/each}
 		{/if}

@@ -10,12 +10,6 @@
 		<div class="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
 			<a href={resolve('/admin')} class="text-base font-semibold tracking-tight">Administration</a>
 			<a
-				href={resolve('/admin/incidents')}
-				class="text-sm text-muted-foreground hover:text-foreground"
-			>
-				Detections
-			</a>
-			<a
 				href={resolve('/admin/import')}
 				class="text-sm text-muted-foreground hover:text-foreground"
 			>
@@ -26,7 +20,9 @@
 			</a>
 			<div class="ml-auto flex items-center gap-3">
 				<!-- Sign-out lives in the branding bar above, on every page. -->
-				<span class="text-sm text-muted-foreground">{data.user.email}</span>
+				<span class="text-sm text-muted-foreground">
+					Signed in as <span class="text-foreground">{data.user.email}</span>
+				</span>
 			</div>
 		</div>
 	</header>

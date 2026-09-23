@@ -3,8 +3,9 @@
  *
  * The first decision is made before paint by the inline script in `src/app.html`, which
  * sets `.dark` on `<html>` — waiting for hydration would flash the wrong theme on every
- * load. This module takes over from there: it reads what the script decided, stores an
- * explicit choice when the visitor toggles, and follows the OS setting until they do.
+ * load. This module takes over from there: it reads what the script decided and stores
+ * the visitor's choice when they toggle. The default is light; the OS setting is not
+ * consulted.
  *
  * A module-level instance is safe here, unlike `ViewState`: it is only ever written in
  * the browser, so the server never renders one visitor's theme into another's page.
@@ -18,26 +19,17 @@ const STORAGE_KEY = 'theme';
 
 class ThemeState {
 	current = $state<Theme>('light');
-	#explicit = false;
 	#started = false;
 
 	/** Call once in the browser, from the root layout. */
 	start() {
 		if (this.#started) return;
 		this.#started = true;
-
 		this.current = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-		this.#explicit = readStored() !== null;
-
-		const query = matchMedia('(prefers-color-scheme: dark)');
-		query.addEventListener('change', (ev) => {
-			if (!this.#explicit) this.#apply(ev.matches ? 'dark' : 'light');
-		});
 	}
 
 	toggle() {
 		const next: Theme = this.current === 'dark' ? 'light' : 'dark';
-		this.#explicit = true;
 		try {
 			localStorage.setItem(STORAGE_KEY, next);
 		} catch {
@@ -52,15 +44,6 @@ class ThemeState {
 		root.classList.toggle('dark', theme === 'dark');
 		root.style.colorScheme = theme;
 		this.current = theme;
-	}
-}
-
-function readStored(): Theme | null {
-	try {
-		const value = localStorage.getItem(STORAGE_KEY);
-		return value === 'light' || value === 'dark' ? value : null;
-	} catch {
-		return null;
 	}
 }
 

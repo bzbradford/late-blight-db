@@ -136,11 +136,16 @@
 	--disease-late-blight: oklch(0.52 0.2 25);
 	--disease-cucurbit-downy-mildew: oklch(0.52 0.12 190);
 
-	/* Current-season recency ramp: days since the most recent detection. */
-	--recency-7: oklch(0.53 0.22 27);
-	--recency-14: oklch(0.66 0.19 45);
-	--recency-30: oklch(0.78 0.16 75);
-	--recency-old: oklch(0.89 0.09 92);
+	/*
+	 * Current-season recency ramp: days since the most recent detection. Red (fresh)
+	 * through rose and violet to blue (old). Lightness rises steadily with age, so the order
+	 * still reads without hue. Validated as an ordinal ramp in both themes: at least 0.06 L
+	 * between steps, and the pale end clears 2:1 against the page.
+	 */
+	--recency-7: oklch(0.53 0.21 27);
+	--recency-14: oklch(0.61 0.19 355);
+	--recency-30: oklch(0.69 0.14 305);
+	--recency-old: oklch(0.77 0.1 255);
 
 	/* Past-season timing ramp: month of the first detection, early to late. */
 	--timing-1: oklch(0.42 0.13 264);
@@ -163,10 +168,10 @@
 	--disease-late-blight: oklch(0.68 0.19 25);
 	--disease-cucurbit-downy-mildew: oklch(0.7 0.12 190);
 
-	--recency-7: oklch(0.62 0.23 27);
-	--recency-14: oklch(0.71 0.19 45);
-	--recency-30: oklch(0.8 0.16 75);
-	--recency-old: oklch(0.87 0.1 92);
+	--recency-7: oklch(0.62 0.22 27);
+	--recency-14: oklch(0.69 0.18 355);
+	--recency-30: oklch(0.76 0.13 305);
+	--recency-old: oklch(0.83 0.09 255);
 
 	--timing-1: oklch(0.48 0.14 264);
 	--timing-2: oklch(0.58 0.13 225);

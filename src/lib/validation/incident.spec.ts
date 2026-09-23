@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { hasErrors, normalizeComments, normalizeText, parseIncident } from './incident';
+import {
+	hasErrors,
+	normalizeComments,
+	normalizeText,
+	parseIncident,
+	reportedBeforeObserved
+} from './incident';
 
 const TODAY = '2026-09-11';
 
@@ -113,5 +119,15 @@ describe('parseIncident', () => {
 		);
 		expect(values.crop).toBe('Sweet corn');
 		expect(values.operationType).toBe('Home garden');
+	});
+});
+
+describe('reportedBeforeObserved', () => {
+	it('flags only a report dated before the observation', () => {
+		expect(reportedBeforeObserved('2026-09-08', '2026-09-07')).toMatch(/before it was observed/);
+		expect(reportedBeforeObserved('2026-09-08', '2026-09-08')).toBeNull();
+		expect(reportedBeforeObserved('2026-09-08', null)).toBeNull();
+		// Nothing to compare against yet — the form is still being filled in.
+		expect(reportedBeforeObserved('', '2026-09-01')).toBeNull();
 	});
 });

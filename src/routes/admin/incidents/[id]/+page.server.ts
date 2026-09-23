@@ -45,18 +45,18 @@ export const actions: Actions = {
 		if (hasErrors(errors)) return fail(400, { errors, values });
 
 		await updateIncident(id, values, { id: locals.user.id });
-		redirect(303, '/admin/incidents');
+		redirect(303, '/admin');
 	},
 
 	retract: async ({ params, locals }) => {
 		if (!locals.user) return fail(401, { errors: {}, values: {} });
 		await retractIncident(parseId(params.id), { id: locals.user.id });
-		redirect(303, '/admin/incidents?includeDeleted=1');
+		redirect(303, '/admin?includeDeleted=1');
 	},
 
 	restore: async ({ params, locals }) => {
 		if (!locals.user) return fail(401, { errors: {}, values: {} });
 		await restoreIncident(parseId(params.id), { id: locals.user.id });
-		redirect(303, '/admin/incidents');
+		redirect(303, '/admin');
 	}
 };

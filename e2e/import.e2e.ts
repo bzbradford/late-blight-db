@@ -29,7 +29,7 @@ function adminRows(page: Page, county: string) {
 }
 
 async function openAdmin2023(page: Page) {
-	await page.goto('/admin/incidents?year=2023');
+	await page.goto('/admin?year=2023');
 }
 
 // These tests write only to late blight 2023, in counties with no fixtures, so they
@@ -130,7 +130,7 @@ test.describe('CSV import', () => {
 		await adminRows(other, 'Lancaster, NE').getByRole('link', { name: 'Edit' }).click();
 		await other.fill('#strain', 'US-8');
 		await other.getByRole('button', { name: 'Save changes' }).click();
-		await expect(other).toHaveURL(/\/admin\/incidents$/);
+		await expect(other.getByRole('dialog')).toHaveCount(0);
 
 		await page.locator('li[data-row="2"]').getByLabel('Replace with this row').check();
 		await page.getByRole('button', { name: /^Import:/ }).click();
@@ -223,20 +223,21 @@ test.describe('single-entry duplicate warning', () => {
 		const add = async () => {
 			await page.goto('/admin/incidents/new');
 			await page.selectOption('#diseaseId', { label: 'Late blight' });
-			await page.selectOption('#countyFips', '31079'); // Hall, NE
+			await page.fill('#countyFips', 'Hall Nebraska'); // 31079
+			await page.keyboard.press('Enter');
 			await page.fill('#observedOn', '2023-07-04');
 			await page.fill('#crop', 'Potato');
 		};
 
 		await add();
 		await page.getByRole('button', { name: 'Add detection' }).click();
-		await expect(page).toHaveURL(/\/admin\/incidents$/);
+		await expect(page).toHaveURL(/\/admin$/);
 
 		await add();
 		await page.getByRole('button', { name: 'Add detection' }).click();
 		await expect(page.getByRole('alert')).toContainText('already exists');
 		await page.getByRole('button', { name: 'Add anyway' }).click();
-		await expect(page).toHaveURL(/\/admin\/incidents$/);
+		await expect(page).toHaveURL(/\/admin$/);
 
 		await openAdmin2023(page);
 		await expect(adminRows(page, 'Hall, NE')).toHaveCount(2);

@@ -7,22 +7,17 @@ test('the branding bar is on every page', async ({ page }) => {
 	}
 });
 
-test('the first paint follows the OS preference', async ({ browser }) => {
+test('the first paint is light, even when the OS prefers dark', async ({ browser }) => {
 	const dark = await browser.newContext({ colorScheme: 'dark' });
 	const page = await dark.newPage();
 	// Checked before any client script runs beyond the inline one in app.html.
 	await page.goto('/', { waitUntil: 'commit' });
-	await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+	await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
+	await expect(page.getByRole('button', { name: 'Switch to dark mode' })).toBeVisible();
 	await dark.close();
-
-	const light = await browser.newContext({ colorScheme: 'light' });
-	const lightPage = await light.newPage();
-	await lightPage.goto('/');
-	await expect(lightPage.locator('html')).not.toHaveClass(/\bdark\b/);
-	await light.close();
 });
 
-test('an explicit choice overrides the OS and survives a reload', async ({ browser }) => {
+test('choosing dark mode survives a reload', async ({ browser }) => {
 	const context = await browser.newContext({ colorScheme: 'light' });
 	const page = await context.newPage();
 	await page.goto('/');

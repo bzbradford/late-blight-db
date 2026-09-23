@@ -79,7 +79,16 @@ strips them with `replaceState` in `afterNavigate` — calling it from `onMount`
 SvelteKit before the router has hydrated. Later disease/year switches fetch `/api/view`,
 from `ViewState.show()` only, never from components. Both paths go through `loadView()` in
 `$lib/server/view.ts`, so fallbacks for bad params stay identical. The admin area is ordinary
-pages and keeps its query-string filters.
+pages and keeps its query-string filters; `/admin` is the detection list.
+
+**Admin editing is a modal over real pages.** `IncidentEditor`
+(`src/lib/state/incident-editor.svelte.ts`) opens `/admin/incidents/new` or `/[id]` in a
+dialog via `preloadData` + `pushState('')`, on the admin list and on the public map alike.
+The data comes from those pages' `load` and the form posts to their actions, so the admin
+guard covers every write; the pages still work on their own. The address bar never
+changes. After a write, wait for `editor.discard()` before refreshing: SvelteKit's popstate
+handler drops an `invalidateAll()` that is still in flight. Shallow Back skips
+`beforeNavigate`, so the editor catches it itself and re-asks about unsaved changes.
 
 **Diseases are rows, not an enum.** Adding a third disease must be a data change, not a
 migration plus a code sweep.
@@ -165,7 +174,9 @@ APIs. It runs behind whatever reverse proxy the extension server provides.
 - Do not pass a raw CSS variable or `oklch()` value to a MapLibre paint property.
 - Do not add counties outside the continental US.
 - Do not let the county field accept free text. Everything on the map keys on FIPS, so that
-  one input stays a constrained select while crop/operation/strain stay unconstrained.
+  one input stays constrained while crop/operation/strain stay unconstrained. It is a
+  searchable picker (`CountyCombobox`, matching in `$lib/counties/search.ts`): typing only
+  filters, and the form posts a hidden FIPS that is set only by choosing a county.
 - Do not mutate incidents without writing an `audit_log` row.
 - Do not rely on client-side validation. `max` on a date input is a hint; the server action
   re-validates everything, including that the county actually exists.

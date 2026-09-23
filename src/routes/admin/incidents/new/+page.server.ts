@@ -53,6 +53,6 @@ export const actions: Actions = {
 		}
 
 		await createIncident(values, { id: locals.user.id });
-		redirect(303, '/admin/incidents');
+		redirect(303, '/admin');
 	}
 };

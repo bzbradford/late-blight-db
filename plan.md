@@ -12,15 +12,15 @@ Its durable lessons have been folded into `CLAUDE.md`; the summary below is enou
 
 ## Status at a glance
 
-| Phase | Scope                                                  | Status                       |
-| ----- | ------------------------------------------------------ | ---------------------------- |
-| 0     | Prerequisites (Postgres roles, GitHub, Chromium libs)  | ✅ Done                      |
-| 1     | Scaffold                                               | ✅ `91febfb`, `e7b915f`      |
-| 2     | Schema (A), geodata (B), shell + symbology (C)         | ✅ `f626b95`, `57c596f`      |
-| 3     | Auth (D), public data layer (E), map (F)               | ✅ `bcdc73c`, `91ea71e`      |
-| 4     | Feed + map/feed linking (G), admin CRUD (H)            | ✅ `c0ea24c`, `be51bff`      |
-| **5** | **Polish — see below**                                 | 🟡 **Waves 0–2 ✅; 5E left** |
-| 6     | Deploy (systemd, reverse proxy, backups, health check) | ⏸ Blocked on server details  |
+| Phase | Scope                                                  | Status                           |
+| ----- | ------------------------------------------------------ | -------------------------------- |
+| 0     | Prerequisites (Postgres roles, GitHub, Chromium libs)  | ✅ Done                          |
+| 1     | Scaffold                                               | ✅ `91febfb`, `e7b915f`          |
+| 2     | Schema (A), geodata (B), shell + symbology (C)         | ✅ `f626b95`, `57c596f`          |
+| 3     | Auth (D), public data layer (E), map (F)               | ✅ `bcdc73c`, `91ea71e`          |
+| 4     | Feed + map/feed linking (G), admin CRUD (H)            | ✅ `c0ea24c`, `be51bff`          |
+| **5** | **Polish — see below**                                 | 🟡 **Waves 0–2, 5G ✅; 5E left** |
+| 6     | Deploy (systemd, reverse proxy, backups, health check) | ⏸ Blocked on server details      |
 
 Phase 6 still needs from the user: SSH/host details for the extension server, the production
 Postgres arrangement, and a `pg_dump` backup destination.
@@ -143,7 +143,8 @@ Owns `src/app.html`, `src/routes/+layout.svelte`, `src/lib/components/shell/Bran
       first paint. Without it, dark-mode users see a white flash on every load.
 - [x] Expose the resolved theme from `theme.svelte.ts` as a rune (`theme.current`) — Track 5B's
       map repaint subscribes to it. **Agree this interface before both tracks start.**
-- [x] Follow OS changes live while the user has not made an explicit choice.
+- [x] ~~Follow OS changes live while the user has not made an explicit choice.~~ Dropped
+      in 5G: light is the default, whatever the OS says.
 - [x] **Sign-in link.** `/login` exists but nothing links to it. Add a low-key "Sign in" link
       in the branding bar (left of the toggle); when signed in it becomes "Administration" +
       a POST sign-out button. Move the existing "Administration" link out of `Header.svelte`.
@@ -443,6 +444,97 @@ Notes from implementation:
 - Legend caption and "No detections reported" moved to `symbology.ts`, shared by the
   on-screen legend and the image.
 
+### Wave 2½ — feed and admin polish (before 5E)
+
+#### Track 5G — Feed windows, detail modal, admin edit modals, admin landing — ✅ DONE
+
+Settled with the user 2026-09-23.
+
+- **D12. Feed sections follow the legend on screen.** Current year: Within 7 days / 8–14
+  days / 15–30 days / More than 30 days. Past years: the timing legend's month bins (May or
+  earlier … October or later), by each detection's own observed month. Empty sections say so.
+  One binning helper in `symbology.ts` serves the map colours and the feed.
+- **D13. Admin editing happens in modals via SvelteKit shallow routing** (`preloadData` +
+  `pushState`). `/admin/incidents/new` and `/admin/incidents/[id]` stay as real pages (direct
+  links, no-JS), and their actions are what the modal posts to, so `guardAdmin` still covers
+  every write. From the public map the modal is pushed with an empty URL, so the address stays
+  `/`. Back closes the modal.
+- **D14. `/admin` is the detection list.** The landing page only linked to it. The admin header
+  shows the signed-in account; `/admin/incidents` redirects to `/admin`, keeping its query.
+
+**Feed (public)**
+
+- [x] `binToken` in `symbology.ts`, used by `tokenFor` and by `feedSections` (`$lib/feed/`).
+      Unit-tested at 7/8, 14/15, 30/31 days and across the month folds.
+- [x] Feed sections per D12, "No detections" in empty ones; newest first within a section.
+      Headings carry the legend swatch and a count.
+- [x] Card: short observed date beside the county name; comments clamped to two lines.
+- [x] Card restructured so the select target and an **expand** button are siblings. Expand
+      opens `DetectionDetail`: county, disease, observed/reported, crop/operation/strain,
+      source, public ID, full comments. The ID moved off the card into this dialog.
+- [x] `reportedOn` added to the public `Detection`.
+- [x] Admins see **Edit** in the detail dialog → edit modal (D13); after a write
+      `ViewState.refresh()` reloads the view, keeping the selection if it still has data.
+
+**Admin**
+
+- [x] `shadcn-svelte add dialog` (vendored; prettier-formatted, not hand-edited).
+- [x] `IncidentDialog` hosts `IncidentForm` for add and edit, including retract/restore.
+      The actions are unchanged (they still redirect); the modal treats a redirect as "done".
+- [x] Unsaved changes = form values differ from the snapshot taken on open. Outside click,
+      Escape, the close button, or Back with unsaved changes → "Discard changes?" bar.
+- [x] `/admin` shows the list; header reads "Signed in as …"; `/admin/incidents` 308s to
+      `/admin` with its query. Full-page actions redirect to `/admin`.
+- [x] Filters: year select from `listIncidentYears()` (all diseases, retracted included);
+      applies on change with `replaceState`; "Reset filters" when any differs from default.
+      Apply button only in `<noscript>`. Filter inputs are `filter-*` ids — the modal form
+      already uses `diseaseId`, and duplicate ids broke both labels and tests.
+- [x] e2e: lifecycle via modal; direct edit page; dirty prompt (outside/Escape/Back, and
+      undo-to-clean closes freely); refused save keeps values; filters + reset; old URL
+      redirect; public expand → edit → feed updates; feed headings both modes. 64/64 green.
+
+Notes from implementation:
+
+- D13 changed slightly: modal entries use `pushState('')` on the admin list too, not the page
+  URL. With the real URL, `invalidateAll()` after a save would run against the wrong route.
+  Refresh therefore returns to the list, not to the open editor.
+- The duplicate-warning link in the form opens in a new tab, so following it from the modal
+  doesn't lose the entry in progress.
+- A county can have cards in two sections (e.g. Dane: Sep 20 and Aug 26) while its map
+  colour follows its newest detection. That is intended.
+
+**Follow-ups (same day, from review):**
+
+- [x] **Cancel** beside Save in the modal; same path as clicking outside (asks if dirty).
+- [x] **Retract** button uses the light-red `destructive` variant.
+- [x] **Reported on ≥ observed on**, enforced as the admin types: `reportedBeforeObserved()`
+      in `validation/incident.ts` drives an inline error and a disabled Save, and `min` on the
+      date input greys out earlier days. `parseIncident` (server and CSV import) uses the
+      same function, so the rule is still enforced on the server.
+- [x] **County picker** replaces the 3,100-option select: `CountyCombobox` (ARIA combobox,
+      keyboard + pointer) over `searchCounties()` — word-prefix match on county, state name,
+      or USPS; ignores "County"/"Parish"; St/St./Saint alike; accents ignored; exact FIPS
+      works; 50 results max. Still constrained: a hidden input posts the FIPS, and the
+      visible input is invalid (blocks submit) until a county is chosen. Needs JavaScript,
+      unlike the old select; the admin area already relies on it for the modals.
+- [x] **Recency ramp red → blue** (was red → yellow): red, rose, violet, pale blue. Lightness
+      stays monotone, so the order reads without hue. Checked with the dataviz ordinal
+      validator in both themes (monotone L, ≥ 0.06 steps, light end ≥ 2:1 on the surface).
+      The pale end is darker than the old pale yellow (L 0.77 vs 0.89), to clear that floor.
+- [x] Tests: search unit tests; e2e for picker (search, Escape keeps dialog, typed text
+      can't submit), date lockout, Cancel. 135 unit / 67 e2e green.
+- [x] **Light is the default theme**, regardless of the OS setting (reverses 5A's "initial
+      theme from `prefers-color-scheme`"). A dark choice via the toggle is still remembered.
+- [x] **"(3 days ago)"** after the date on feed cards and the detail modal's Observed row:
+      `timeAgo()` in `$lib/feed/time-ago.ts` — days up to 30 (the legend's last day
+      window), then whole calendar months, then years; never "0 months".
+- [x] Fixed an e2e race: the admin lifecycle test created its detection in late blight 2026,
+      which the parallel feed tests count exactly ("5 detections"). It now uses 2024.
+
+**Acceptance:** feed sections always match the legend beside them; no admin write path bypasses
+`guardAdmin`; a modal with unsaved changes never closes without confirmation; the public
+address bar stays `/` throughout. ✅ Screenshot-checked light/dark (feed, detail, dirty prompt).
+
 ### Wave 3 — remaining polish from the original Phase 5
 
 #### Track 5E — Accessibility, loading, and meta
@@ -494,3 +586,9 @@ Append one line per working session: date, what moved, what's next.
 - 2026-09-23 — 5F done: Save image exports a 2× PNG with title, legend, labels as arranged,
   UW footer, and basemap credit. 123 unit / 56 e2e green; exports checked by eye in both
   themes. Next: Wave 3 — 5E (accessibility, loading/error states, mobile pass, OG tags).
+- 2026-09-23 — 5G done: feed sections follow the legend, card dates, detail dialog, admin
+  add/edit/retract in a modal (from the list and from the public map), `/admin` is the list,
+  instant year/disease filters with reset. 126 unit / 64 e2e green. Next: 5E.
+- 2026-09-23 — 5G follow-ups: modal Cancel, red Retract, reported-date lockout, searchable
+  county picker, red→blue recency ramp, light-by-default theme, "time ago" on dates.
+  140 unit / 67 e2e green. Next: 5E.

@@ -61,6 +61,19 @@ export function today(now = new Date()): string {
 }
 
 /**
+ * The one cross-field date rule. Exported so the form can refuse to save as the admin
+ * types; the server and the CSV importer apply it through `parseIncident`.
+ */
+export function reportedBeforeObserved(
+	observedOn: string,
+	reportedOn: string | null
+): string | null {
+	return reportedOn && observedOn && reportedOn < observedOn
+		? 'A detection cannot be reported before it was observed.'
+		: null;
+}
+
+/**
  * Anything with FormData's `get`. The CSV importer passes a plain adapter, so an imported
  * row goes through exactly the rules the form does.
  */
@@ -108,8 +121,9 @@ export function parseIncident(
 			errors.reportedOn = 'Enter a valid date.';
 		} else if (values.reportedOn > todayIso) {
 			errors.reportedOn = 'The report date cannot be in the future.';
-		} else if (!errors.observedOn && values.reportedOn < values.observedOn) {
-			errors.reportedOn = 'A detection cannot be reported before it was observed.';
+		} else if (!errors.observedOn) {
+			const order = reportedBeforeObserved(values.observedOn, values.reportedOn);
+			if (order) errors.reportedOn = order;
 		}
 	}
 

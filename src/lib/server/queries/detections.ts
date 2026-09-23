@@ -10,6 +10,7 @@ export type Detection = {
 	countyName: string;
 	stateUsps: string;
 	observedOn: string;
+	reportedOn: string | null;
 	crop: string | null;
 	operationType: string | null;
 	strain: string | null;
@@ -46,6 +47,7 @@ export async function getDetections(diseaseSlug: string, year: number): Promise<
 			countyName: counties.name,
 			stateUsps: counties.stateUsps,
 			observedOn: incidents.observedOn,
+			reportedOn: incidents.reportedOn,
 			crop: incidents.crop,
 			operationType: incidents.operationType,
 			strain: incidents.strain,

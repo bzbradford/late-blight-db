@@ -11,7 +11,10 @@ declare global {
 
 		// interface Error {}
 		// interface PageData {}
-		// interface PageState {}
+		interface PageState {
+			/** An incident editor modal is open — see `$lib/state/incident-editor.svelte`. */
+			incidentEditor?: boolean;
+		}
 		// interface Platform {}
 	}
 }

@@ -43,11 +43,11 @@ test.describe('admin authentication', () => {
 		await page.getByRole('button', { name: /Sign in/ }).click();
 
 		await expect(page).toHaveURL(/\/admin$/);
-		await expect(page.getByRole('heading', { name: /Signed in as/ })).toBeVisible();
+		await expect(page.getByText(/Signed in as/)).toBeVisible();
 
 		// The session must survive a fresh page load, not just live in memory.
 		await page.reload();
-		await expect(page.getByRole('heading', { name: /Signed in as/ })).toBeVisible();
+		await expect(page.getByText(/Signed in as/)).toBeVisible();
 
 		// And the public map now offers a way back in.
 		await page.goto('/');

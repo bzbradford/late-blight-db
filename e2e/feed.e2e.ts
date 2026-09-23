@@ -7,6 +7,8 @@ test('feed lists detections for the selected disease and year', async ({ page })
 	await page.goto('/?disease=late-blight&year=2026');
 	await expect(page.getByText('5 detections')).toBeVisible();
 	await expect(page.getByRole('button', { name: /Dane, WI/ }).first()).toBeVisible();
+	// The seed dates Dane's newest detection three days back.
+	await expect(page.locator(`li[data-fips="${DANE}"]`).first()).toContainText('(3 days ago)');
 });
 
 test('clicking a feed card selects its county', async ({ page }) => {
@@ -23,7 +25,7 @@ test('a selected county highlights every one of its detections, not just the fir
 	page
 }) => {
 	await page.goto(`/?disease=late-blight&year=2026&county=${DANE}`);
-	const cards = page.locator(`li[data-fips="${DANE}"] button`);
+	const cards = page.locator(`li[data-fips="${DANE}"] button[aria-pressed]`);
 	await expect(cards).toHaveCount(2);
 	for (let i = 0; i < 2; i++) {
 		await expect(cards.nth(i)).toHaveAttribute('aria-pressed', 'true');
@@ -56,7 +58,7 @@ test('clicking a county on the map highlights it in the feed', async ({ page }) 
 	if (!box) throw new Error('no map box');
 	await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 
-	const cards = page.locator(`li[data-fips="${DANE}"] button`);
+	const cards = page.locator(`li[data-fips="${DANE}"] button[aria-pressed]`);
 	await expect(cards.first()).toHaveAttribute('aria-pressed', 'true');
 });
 
@@ -66,4 +68,41 @@ test('a year with no detections explains itself', async ({ page }) => {
 	await page.goto('/?disease=late-blight&year=2024');
 	// Falls back to a year that has data rather than erroring.
 	await expect(page.locator('text=detections').first()).toBeVisible();
+});
+
+test('feed sections match the legend, and say when a window is empty', async ({ page }) => {
+	await page.goto('/?disease=late-blight&year=2026');
+	const headings = page.getByRole('complementary', { name: 'Detection feed' }).getByRole('heading');
+	await expect(headings).toHaveText([
+		/Within 7 days/,
+		/8–14 days/,
+		/15–30 days/,
+		/More than 30 days/
+	]);
+
+	// A past season uses the month bins instead, latest first.
+	await page.goto('/?disease=late-blight&year=2025');
+	await expect(headings.first()).toHaveText(/October or later/);
+	await expect(headings.last()).toHaveText(/May or earlier/);
+	await expect(page.getByText('No detections').first()).toBeVisible();
+});
+
+test('the detail view shows the whole record, with no edit button for the public', async ({
+	page
+}) => {
+	await page.goto('/?disease=late-blight&year=2026');
+	const card = page.locator(`li[data-fips="${DANE}"]`).first();
+	await card.getByRole('button', { name: /^Details:/ }).click();
+
+	const dialog = page.getByRole('dialog');
+	await expect(dialog.getByRole('heading', { name: 'Dane, WI' })).toBeVisible();
+	await expect(dialog).toContainText('Observed');
+	await expect(dialog).toContainText('(3 days ago)');
+	await expect(dialog).toContainText('ID');
+	await expect(dialog.getByRole('button', { name: 'Edit' })).toHaveCount(0);
+
+	// Selecting is still the card's own job; the detail button does not select.
+	await page.keyboard.press('Escape');
+	await expect(dialog).toHaveCount(0);
+	await expect(page.locator('li[data-fips] button[aria-pressed="true"]')).toHaveCount(0);
 });

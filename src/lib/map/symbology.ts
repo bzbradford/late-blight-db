@@ -82,6 +82,28 @@ export function legendFor(mode: SymbologyMode): LegendEntry[] {
 	return mode === 'recency' ? RECENCY_LEGEND : TIMING_LEGEND;
 }
 
+/**
+ * The legend bin one date falls in, as its CSS custom property. In `recency` mode the date
+ * is read as a most recent detection, in `timing` mode as a first detection.
+ *
+ * The map colours counties with this and the feed groups detections with it, so a
+ * detection can never sit under one legend entry in the feed and another on the map.
+ */
+export function binToken(date: string, mode: SymbologyMode, today = new Date()): string {
+	if (mode === 'recency') {
+		const days = daysBetween(date, today);
+		if (days <= 7) return '--recency-7';
+		if (days <= 14) return '--recency-14';
+		if (days <= 30) return '--recency-30';
+		return '--recency-old';
+	}
+
+	const month = Number(date.slice(5, 7));
+	if (month <= 5) return TIMING_BINS[0].token;
+	if (month >= 10) return TIMING_BINS[TIMING_BINS.length - 1].token;
+	return TIMING_BINS[month - 5].token;
+}
+
 /** The CSS custom property a county should be filled with, or null if it has no detections. */
 export function tokenFor(
 	aggregate: CountyAggregate | undefined,
@@ -89,19 +111,8 @@ export function tokenFor(
 	today = new Date()
 ): string | null {
 	if (!aggregate) return null;
-
-	if (mode === 'recency') {
-		const days = daysBetween(aggregate.lastDetection, today);
-		if (days <= 7) return '--recency-7';
-		if (days <= 14) return '--recency-14';
-		if (days <= 30) return '--recency-30';
-		return '--recency-old';
-	}
-
-	const month = Number(aggregate.firstDetection.slice(5, 7));
-	if (month <= 5) return TIMING_BINS[0].token;
-	if (month >= 10) return TIMING_BINS[TIMING_BINS.length - 1].token;
-	return TIMING_BINS[month - 5].token;
+	const date = mode === 'recency' ? aggregate.lastDetection : aggregate.firstDetection;
+	return binToken(date, mode, today);
 }
 
 const colorCache = new Map<string, string>();

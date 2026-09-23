@@ -62,6 +62,39 @@ export class ViewState {
 	 * view the map and feed are not showing yet.
 	 */
 	async show(disease: string, year: number) {
+		const data = await this.#fetch(disease, year);
+		if (!data) return;
+		// A county selected under one disease-year usually has nothing in another.
+		this.selectedCounty = null;
+		this.#apply(data);
+		// Labels stay on across a switch, but a date in one season means nothing in
+		// another; start the new one from its own default window.
+		if (this.labelsSince !== null) {
+			this.labelsSince = defaultLabelSince(this.year, this.labelEnd);
+		}
+	}
+
+	/**
+	 * Reloads the current disease-year after an admin edits a detection from the map.
+	 * Selection and labels are kept where they still make sense.
+	 */
+	async refresh() {
+		const data = await this.#fetch(this.disease, this.year);
+		if (!data) return;
+		const sameView = data.activeDisease === this.disease && data.activeYear === this.year;
+		this.#apply(data);
+		if (!sameView) {
+			this.labelsSince =
+				this.labelsSince === null ? null : defaultLabelSince(this.year, this.labelEnd);
+		}
+		// D5: only counties with detections can stay selected.
+		if (this.selectedCounty && !data.detections.some((d) => d.countyFips === this.selectedCounty)) {
+			this.selectedCounty = null;
+		}
+	}
+
+	/** Null when superseded by a newer request or failed (then `error` says so). */
+	async #fetch(disease: string, year: number): Promise<ViewData | null> {
 		this.#inflight?.abort();
 		const controller = new AbortController();
 		this.#inflight = controller;
@@ -75,18 +108,13 @@ export class ViewState {
 			const res = await fetch(`${resolve('/api/view')}?${params}`, { signal: controller.signal });
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			const data: ViewData = await res.json();
-			// A county selected under one disease-year usually has nothing in another.
-			this.selectedCounty = null;
-			this.#apply(data);
-			// Labels stay on across a switch, but a date in one season means nothing in
-			// another; start the new one from its own default window.
-			if (this.labelsSince !== null) {
-				this.labelsSince = defaultLabelSince(this.year, this.labelEnd);
-			}
+			// Aborted after the body arrived: a newer request owns the view now.
+			return controller.signal.aborted ? null : data;
 		} catch {
 			// A newer switch superseded this one; it owns the loading and error state now.
-			if (controller.signal.aborted) return;
-			this.error = 'The detections could not be loaded. Please try again.';
+			if (!controller.signal.aborted)
+				this.error = 'The detections could not be loaded. Please try again.';
+			return null;
 		} finally {
 			if (this.#inflight === controller) {
 				this.#inflight = null;

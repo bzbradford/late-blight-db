@@ -1,10 +1,17 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import type { ActionResult } from '@sveltejs/kit';
+	import CountyCombobox from '$lib/components/admin/CountyCombobox.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import type { CountyOption } from '$lib/server/queries/admin';
 	import type { Disease } from '$lib/server/queries/diseases';
-	import type { FieldErrors, IncidentInput } from '$lib/validation/incident';
+	import {
+		reportedBeforeObserved,
+		type FieldErrors,
+		type IncidentInput
+	} from '$lib/validation/incident';
 
 	type Props = {
 		diseases: Disease[];
@@ -21,6 +28,16 @@
 		 * needs an explicit "add anyway" — see `/admin/incidents/new`.
 		 */
 		duplicates?: { id: number; publicId: string; crop: string | null; strain: string | null }[];
+		/**
+		 * Handles the action's result instead of SvelteKit's default (follow the redirect,
+		 * or set the page's `form`). A modal needs this: the page it sits on is not the page
+		 * whose action it posted to.
+		 */
+		onResult?: (result: ActionResult) => void | Promise<void>;
+		/** Called as fields change: whether anything differs from what the form opened with. */
+		onDirtyChange?: (dirty: boolean) => void;
+		/** Shows a Cancel button beside the submit button. */
+		onCancel?: () => void;
 	};
 
 	let {
@@ -32,21 +49,34 @@
 		submitLabel,
 		maxDate,
 		action,
-		duplicates = []
+		duplicates = [],
+		onResult,
+		onDirtyChange,
+		onCancel
 	}: Props = $props();
 
-	let submitting = $state(false);
+	// The two dates are tracked as they are typed, so an impossible pair blocks saving
+	// before the round trip. The server applies the same rule regardless.
+	let observedOn = $derived(values.observedOn ?? '');
+	let reportedOn = $derived(values.reportedOn ?? '');
+	let dateOrderError = $derived(reportedBeforeObserved(observedOn, reportedOn || null));
 
-	/** Counties grouped by state so the native select is navigable by type-ahead. */
-	let byState = $derived.by(() => {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const groups = new Map<string, CountyOption[]>();
-		for (const c of counties) {
-			const existing = groups.get(c.stateName);
-			if (existing) existing.push(c);
-			else groups.set(c.stateName, [c]);
-		}
-		return [...groups.entries()];
+	let submitting = $state(false);
+	let formEl: HTMLFormElement | undefined = $state();
+
+	/**
+	 * Compared against the opening snapshot rather than set on the first keystroke, so
+	 * typing a change and then undoing it leaves nothing to discard.
+	 */
+	let snapshot = '';
+	function serialize(form: HTMLFormElement) {
+		return JSON.stringify([...new FormData(form).entries()].map(([k, v]) => [k, String(v)]));
+	}
+	function checkDirty() {
+		if (formEl) onDirtyChange?.(serialize(formEl) !== snapshot);
+	}
+	onMount(() => {
+		if (formEl) snapshot = serialize(formEl);
 	});
 
 	const inputClass =
@@ -54,13 +84,17 @@
 </script>
 
 <form
+	bind:this={formEl}
 	method="POST"
 	{action}
 	class="space-y-5"
+	oninput={checkDirty}
+	onchange={checkDirty}
 	use:enhance={() => {
 		submitting = true;
-		return async ({ update }) => {
-			await update();
+		return async ({ result, update }) => {
+			if (onResult) await onResult(result);
+			else await update();
 			submitting = false;
 		};
 	}}
@@ -80,21 +114,17 @@
 	<div class="space-y-1.5">
 		<label for="countyFips" class="text-sm font-medium">County</label>
 		<!--
-			A constrained select, not a text field. Everything on the map keys on FIPS, so
-			this is the one input that must not accept free text.
+			Searchable, but still constrained: only a chosen county's FIPS is posted. Everything
+			on the map keys on FIPS, so this is the one input that must not accept free text.
 		-->
-		<select id="countyFips" name="countyFips" required class={inputClass}>
-			<option value="" disabled selected={!values.countyFips}>Choose a county…</option>
-			{#each byState as [stateName, options] (stateName)}
-				<optgroup label={stateName}>
-					{#each options as county (county.fips)}
-						<option value={county.fips} selected={values.countyFips === county.fips}>
-							{county.name}
-						</option>
-					{/each}
-				</optgroup>
-			{/each}
-		</select>
+		<CountyCombobox
+			id="countyFips"
+			name="countyFips"
+			{counties}
+			value={values.countyFips ?? ''}
+			invalid={Boolean(errors.countyFips)}
+			class={inputClass}
+		/>
 		{#if errors.countyFips}<p class="text-sm text-destructive">{errors.countyFips}</p>{/if}
 	</div>
 
@@ -107,7 +137,8 @@
 				type="date"
 				required
 				max={maxDate}
-				value={values.observedOn ?? ''}
+				value={observedOn}
+				oninput={(e) => (observedOn = e.currentTarget.value)}
 				class={inputClass}
 			/>
 			{#if errors.observedOn}<p class="text-sm text-destructive">{errors.observedOn}</p>{/if}
@@ -121,11 +152,16 @@
 				id="reportedOn"
 				name="reportedOn"
 				type="date"
+				min={observedOn || undefined}
 				max={maxDate}
-				value={values.reportedOn ?? ''}
+				value={reportedOn}
+				oninput={(e) => (reportedOn = e.currentTarget.value)}
+				aria-invalid={Boolean(dateOrderError ?? errors.reportedOn) || undefined}
 				class={inputClass}
 			/>
-			{#if errors.reportedOn}<p class="text-sm text-destructive">{errors.reportedOn}</p>{/if}
+			{#if dateOrderError ?? errors.reportedOn}
+				<p role="alert" class="text-sm text-destructive">{dateOrderError ?? errors.reportedOn}</p>
+			{/if}
 		</div>
 	</div>
 
@@ -189,6 +225,9 @@
 					<li>
 						<a
 							href={resolve('/admin/incidents/[id]', { id: String(d.id) })}
+							target="_blank"
+							rel="noopener"
+							title="Opens in a new tab, so this entry is kept"
 							class="font-mono text-xs underline">{d.publicId}</a
 						>
 						{[d.crop, d.strain].filter(Boolean).join(' · ') || ''}
@@ -200,10 +239,25 @@
 				Otherwise edit the existing one instead.
 			</p>
 		</div>
-		<Button type="submit" name="confirmDuplicate" value="yes" disabled={submitting}>
-			{submitting ? 'Saving…' : 'Add anyway'}
-		</Button>
-	{:else}
-		<Button type="submit" disabled={submitting}>{submitting ? 'Saving…' : submitLabel}</Button>
 	{/if}
+
+	<div class="flex items-center gap-2">
+		{#if duplicates.length}
+			<Button
+				type="submit"
+				name="confirmDuplicate"
+				value="yes"
+				disabled={submitting || Boolean(dateOrderError)}
+			>
+				{submitting ? 'Saving…' : 'Add anyway'}
+			</Button>
+		{:else}
+			<Button type="submit" disabled={submitting || Boolean(dateOrderError)}>
+				{submitting ? 'Saving…' : submitLabel}
+			</Button>
+		{/if}
+		{#if onCancel}
+			<Button type="button" variant="outline" onclick={onCancel}>Cancel</Button>
+		{/if}
+	</div>
 </form>

@@ -3,6 +3,8 @@
 	import { afterNavigate, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
+	import IncidentDialog from '$lib/components/admin/IncidentDialog.svelte';
+	import DetectionDetail from '$lib/components/DetectionDetail.svelte';
 	import DetectionFeed from '$lib/components/DetectionFeed.svelte';
 	import DetectionMap from '$lib/components/DetectionMap.svelte';
 	import ControlPanel from '$lib/components/shell/ControlPanel.svelte';
@@ -13,7 +15,9 @@
 	import { today } from '$lib/validation/incident';
 	import { symbologyMode } from '$lib/map/symbology';
 	import { requestFlyTo } from '$lib/state/selection.svelte';
+	import { IncidentEditor } from '$lib/state/incident-editor.svelte';
 	import { ViewState } from '$lib/state/view.svelte';
+	import type { Detection } from '$lib/server/queries/detections';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -30,6 +34,21 @@
 	);
 
 	let detectionMap: DetectionMap | undefined = $state();
+
+	/** The detection open in the detail dialog. */
+	let detail = $state<Detection | null>(null);
+
+	/**
+	 * Admins can edit from the detail dialog. The editor is the admin page's own modal
+	 * (its data and actions come from `/admin/incidents/[id]`, behind the admin guard);
+	 * this page only hosts it, and reloads the view once something is saved.
+	 */
+	const editor = new IncidentEditor();
+
+	async function editDetection(detection: Detection) {
+		await editor.open(resolve('/admin/incidents/[id]', { id: String(detection.id) }));
+		if (editor.current) detail = null;
+	}
 
 	/** The saved image's title and file name describe exactly what it shows. */
 	function saveImage() {
@@ -162,8 +181,23 @@
 				selectedCounty={view.selectedCounty}
 				diseaseName={activeDiseaseName}
 				year={view.year}
+				{mode}
 				onSelect={(fips) => view.select(fips)}
+				onExpand={(detection) => (detail = detection)}
 			/>
 		</aside>
 	</main>
 </div>
+
+<DetectionDetail
+	detection={detail}
+	diseaseName={activeDiseaseName}
+	isAdmin={data.isAdmin}
+	editing={editor.loading}
+	onClose={() => (detail = null)}
+	onEdit={editDetection}
+/>
+
+{#if data.isAdmin}
+	<IncidentDialog {editor} onChanged={() => view.refresh()} />
+{/if}

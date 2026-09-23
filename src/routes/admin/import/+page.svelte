@@ -112,7 +112,7 @@
 				<li>{form.summary.kept} kept as they were</li>
 			</ul>
 			<div class="mt-4 flex gap-2">
-				<Button href={resolve('/admin/incidents')}>View detections</Button>
+				<Button href={resolve('/admin')}>View detections</Button>
 				<Button variant="outline" href={resolve('/admin/import')}>Import another file</Button>
 			</div>
 		</section>
