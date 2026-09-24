@@ -12,19 +12,20 @@ Its durable lessons have been folded into `CLAUDE.md`; the summary below is enou
 
 ## Status at a glance
 
-| Phase | Scope                                                  | Status                                     |
-| ----- | ------------------------------------------------------ | ------------------------------------------ |
-| 0     | Prerequisites (Postgres roles, GitHub, Chromium libs)  | ✅ Done                                    |
-| 1     | Scaffold                                               | ✅ `91febfb`, `e7b915f`                    |
-| 2     | Schema (A), geodata (B), shell + symbology (C)         | ✅ `f626b95`, `57c596f`                    |
-| 3     | Auth (D), public data layer (E), map (F)               | ✅ `bcdc73c`, `91ea71e`                    |
-| 4     | Feed + map/feed linking (G), admin CRUD (H)            | ✅ `c0ea24c`, `be51bff`                    |
-| **5** | **Polish — see below**                                 | 🟡 **All tracks ✅; one manual pass left** |
-| 5½    | Accounts: roles, invitations, attribution (5H)         | ✅ Done, follow-ups included               |
-| 6     | Deploy (systemd, reverse proxy, backups, health check) | ⏸ Blocked on server details                |
+| Phase | Scope                                                  | Status                                      |
+| ----- | ------------------------------------------------------ | ------------------------------------------- |
+| 0     | Prerequisites (Postgres roles, GitHub, Chromium libs)  | ✅ Done                                     |
+| 1     | Scaffold                                               | ✅ `91febfb`, `e7b915f`                     |
+| 2     | Schema (A), geodata (B), shell + symbology (C)         | ✅ `f626b95`, `57c596f`                     |
+| 3     | Auth (D), public data layer (E), map (F)               | ✅ `bcdc73c`, `91ea71e`                     |
+| 4     | Feed + map/feed linking (G), admin CRUD (H)            | ✅ `c0ea24c`, `be51bff`                     |
+| **5** | **Polish — see below**                                 | 🟡 **All tracks ✅; one manual pass left**  |
+| 5½    | Accounts: roles, invitations, attribution (5H)         | ✅ Done, follow-ups included                |
+| 6     | Deploy (systemd, reverse proxy, backups, health check) | 🟡 Staging scripted; one-time setup pending |
 
-Phase 6 still needs from the user: SSH/host details for the extension server, the production
-Postgres arrangement, and a `pg_dump` backup destination. The deploy must set
+Phase 6: staging first (below), on the AgWeather dev server, for stakeholder feedback.
+The production host is still undecided; it needs the production Postgres arrangement and a
+`pg_dump` backup destination. The deploy must set
 `ADDRESS_HEADER` (and `XFF_DEPTH` if it's `X-Forwarded-For`) for the reverse proxy — see
 `.env.example`; without it every client shares one sign-in rate-limit bucket.
 
@@ -784,6 +785,35 @@ Notes from implementation:
 
 ---
 
+## Phase 6 — Deploy
+
+### Staging (2026-09-24)
+
+`blightmap.dev.agweather.cals.wisc.edu` on `deploy@dev.agweather.cals.wisc.edu -p 216`
+(Ubuntu 24.04, 3.8 GB RAM shared with Rails apps, nginx + Passenger, certbot, Postgres
+18.6, Node 24.21 via `n`, pnpm 9.9 global). Runbook: `deploy/README.md`.
+
+- **D23. Build locally, ship the release.** The server has ~2 GB free, so it installs
+  packages but never runs `vite build`. A release is `git archive HEAD` plus `build/`,
+  in `releases/<UTC timestamp>`; `current` symlink; 5 kept; `deploy.sh rollback`. The
+  script refuses a dirty tree, so a release is exactly one commit (`REVISION` file).
+- **D24. systemd user service + nginx `proxy_pass`, not Passenger.** Restarts need no
+  sudo (after a one-time `enable-linger`), it's the plain shape any host can run, and one
+  process keeps the in-memory sign-in limiter exact. `ADDRESS_HEADER=X-Real-IP`, set by
+  nginx. pnpm pinned via `packageManager` (10.15) and run with `npx` on the server.
+- [x] `/health` (200 when the database answers, else 503); the deploy waits on it and
+      switches back to the previous release if it fails.
+- [x] `deploy/`: `deploy.sh`, `blightmap.service`, `nginx-blightmap.conf`,
+      `env.staging.example`, `README.md`.
+- [ ] One-time setup (user, needs sudo/DNS): DNS A record, database + role, linger,
+      nginx + certbot, `shared/.env`.
+- [ ] First deploy, `create-admin`, smoke test (sign in, invite, rate limit sees real
+      client addresses, `X-Real-IP` from a client is overwritten).
+- [ ] Data for stakeholders: real detections by CSV import, or synthetic (open).
+- Later, for production: backups (`pg_dump` + destination), uptime monitor on `/health`.
+
+---
+
 ## Session log
 
 Append one line per working session: date, what moved, what's next.
@@ -842,3 +872,6 @@ Append one line per working session: date, what moved, what's next.
   green. Next: Phase 6 (set `ADDRESS_HEADER` there).
 - 2026-09-24 — Link expiry tested (fake clock against the dev database; checked it fails
   with the expiry test removed). 165 unit green. Next: Phase 6.
+- 2026-09-24 — Phase 6 staging: surveyed the AgWeather dev server; `/health`, deploy
+  script with rollback, systemd user unit, nginx site, runbook. Next: one-time server
+  setup (DNS, database, linger, certbot), first deploy.

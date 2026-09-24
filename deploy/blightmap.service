@@ -1,0 +1,18 @@
+# systemd *user* service for the deploy account: ~/.config/systemd/user/blightmap.service
+# It runs as `deploy` and restarts without sudo. Needs `loginctl enable-linger deploy`
+# (once, with sudo) so it runs without anyone logged in. See deploy/README.md.
+[Unit]
+Description=Late blight / CDM detection map
+After=network.target
+
+[Service]
+# `current` is a symlink to the active release, resolved again on each (re)start.
+WorkingDirectory=%h/blightmap/current
+EnvironmentFile=%h/blightmap/shared/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/local/bin/node build/index.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
