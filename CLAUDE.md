@@ -8,8 +8,9 @@ production. Both diseases arrive by long-distance inoculum dispersal rather than
 locally, so _where_ and _how recently_ they have been confirmed is what drives a grower's
 preventive fungicide timing.
 
-The public site is read-only. A small set of extension specialists hold admin accounts and
-enter detections. The main view is a US county choropleth beside a detection feed; selecting
+The public site is read-only. A small set of extension specialists hold accounts and enter
+detections: **admins**, who also manage accounts and import CSVs, and **reporters**, who
+change only the detections they entered. The main view is a US county choropleth beside a detection feed; selecting
 a county highlights its detections in the feed and vice versa.
 
 **Work plan and progress live in `plan.md`.** Read it at the start of a session and update its
@@ -31,7 +32,7 @@ pnpm db:studio    # Drizzle Studio
 pnpm build:geo    # Census shapefiles -> static/geo TopoJSON + counties.csv
 pnpm seed         # reference data (diseases, counties) - idempotent
 pnpm seed:dev     # synthetic detections + dev admin; truncates incidents, dev only
-pnpm create-admin # provision or reset an admin account
+pnpm create-admin # first admin / lockout recovery (day to day: invite from /admin/users)
 ```
 
 ## Architecture decisions
@@ -104,7 +105,28 @@ converge naturally, but anything typed is accepted.
 
 **Everything recorded is public.** There are no admin-only or private fields. Detections
 display at county resolution and carry no farm-identifying data; anything further worth
-sharing goes in `comments`.
+sharing goes in `comments`. That includes who entered each one: "Reported by" (or
+"Imported by", for CSV back-loads) shows the account's display name and affiliation, never
+its email address or user ID.
+
+**Two roles, enforced on the server.** `admin` and `reporter` (`$lib/auth/roles.ts`). A
+reporter changes only detections whose `created_by` is theirs (`canEditIncident`), and
+cannot reach `ADMIN_ONLY_PATHS` (`/admin/users`, `/admin/import`). Each rule is enforced
+twice: `guardAdmin` refuses the paths, and the mutations in `queries/admin.ts` re-check the
+actor inside their transactions. The UI only hides what the server would refuse. The
+public payload carries a per-detection `canEdit` computed for the viewer, not the
+creator's ID.
+
+**Accounts are invited, never signed up, and never deleted.** An admin creates a one-time
+link at `/admin/users` (invite, or password reset) and sends it themselves — there is no
+email sending. Only a SHA-256 of the token is stored. **Seniority:** an admin can change
+another admin's account (role, email, reset link, deactivation) only if they became an admin
+first (`user.admin_since`, `canManageUser`), so someone you promote can never demote or lock
+you out. `managed()` in `queries/users.ts` applies it, with both rows locked, to every admin
+action on an account. A check constraint keeps `admin_since` set exactly when `role` is
+`admin`. Users are deactivated, not deleted:
+deleting one would erase "Reported by" from their detections. Every account change writes an
+`audit_log` row (`queries/users.ts`).
 
 **Recency symbology differs by year.** For the current season, color by days since the most
 recent detection. For a past season that ramp is meaningless — every detection is equally old
@@ -130,16 +152,26 @@ APIs. It runs behind whatever reverse proxy the extension server provides.
 ## Key paths
 
 - `src/lib/server/db/schema.ts` — Drizzle schema; single source of truth for the data model
-- `src/lib/server/auth.ts` — Better Auth config. `disableSignUp` stays on.
+- `src/lib/server/auth.ts` — Better Auth config. `disableSignUp` stays on. The extra user
+  fields (`role`, `affiliation`, `deactivatedAt`, `lastSignInAt`) are all `input: false`,
+  and `/update-user` and `/change-password` are in `disabledPaths`: otherwise a reporter
+  could make themselves an admin through Better Auth's own endpoint, or change their
+  profile without an audit row. After changing `additionalFields`, run `pnpm auth:schema`
+  and `pnpm format`.
 - `src/hooks.server.ts` (`guardAdmin`) — the single guard for the whole admin area: pages,
   form actions, and `+server.ts` endpoints. Put new admin routes under `/admin` so they
-  inherit it. (`src/routes/admin/+layout.server.ts` also redirects, but a layout `load`
-  never runs for actions or endpoints, so on its own it is not a guard.)
-- `scripts/create-admin.ts` — the only way an account is created. It uses Better Auth's
-  server context (`auth.$context`) rather than the sign-up endpoint, so it works with
-  `disableSignUp` on. It cannot import `src/lib/server/auth.ts`, which depends on
-  SvelteKit-only modules, so it builds its own instance — keep `MIN_PASSWORD_LENGTH` in
-  sync with the app config.
+  inherit it; add admin-only prefixes to `ADMIN_ONLY_PATHS`. (`src/routes/admin/+layout.server.ts`
+  also redirects, but a layout `load` never runs for actions or endpoints, so on its own it
+  is not a guard.)
+- `src/lib/server/queries/users.ts` — invitations, reset links, roles, deactivation, and
+  profiles, each in a transaction with its audit row. Accepting an invite writes the user
+  and credential account directly, hashing with Better Auth's own hasher.
+- `scripts/create-admin.ts` — bootstraps the first admin and recovers a locked-out one;
+  `--reset` never changes a role. `--deactivate` / `--reactivate` handle the one case the
+  seniority rule leaves to the command line: removing the most senior admin. It uses Better Auth's server context (`auth.$context`)
+  rather than the sign-up endpoint, so it works with `disableSignUp` on. It cannot import
+  `src/lib/server/auth.ts`, which depends on SvelteKit-only modules, so it builds its own
+  instance; `MIN_PASSWORD_LENGTH` comes from `$lib/validation/account.ts`, shared by both.
 - `src/lib/components/ui/**` — vendored shadcn-svelte primitives, regenerated by
   `shadcn-svelte add`. Do not hand-edit; lint rules are scoped off for this directory in
   `eslint.config.js`.
@@ -153,6 +185,7 @@ APIs. It runs behind whatever reverse proxy the extension server provides.
   both `drizzle/0002_public_id_function.sql` and `src/lib/public-id.ts`; a test holds
   them together.
 - `src/lib/csv/columns.ts` — the one CSV column spec for download, template, and import.
+  The download adds an export-only `reported_by`; the importer ignores unknown columns.
   `src/lib/import/` holds the pure import logic (row resolution, classification);
   `src/lib/server/import.ts` runs it against the database. An import never inserts a
   possible duplicate without an explicit "keep both".
@@ -164,7 +197,11 @@ APIs. It runs behind whatever reverse proxy the extension server provides.
 
 - Do not add PostGIS or store geometry in Postgres.
 - Do not hand-edit anything in `static/geo/` or `src/lib/components/ui/`.
-- Do not enable public signup — admins are provisioned by CLI script.
+- Do not enable public signup — accounts come from an admin's invitation (or `create-admin`).
+- Do not hard-delete users; deactivate them. Do not let an admin act on their own account
+  from the users page, act on a more senior admin, or leave no active admin.
+- Do not expose a user's email address or ID outside `/admin/users` (the list filter's
+  option values are the one admin-area exception).
 - Do not report distinguishable sign-in errors. "No such account" and "wrong password" must
   read identically to the client, or the form confirms which addresses have admin accounts.
 - Do not make sign-out reachable by GET.
@@ -177,7 +214,7 @@ APIs. It runs behind whatever reverse proxy the extension server provides.
   one input stays constrained while crop/operation/strain stay unconstrained. It is a
   searchable picker (`CountyCombobox`, matching in `$lib/counties/search.ts`): typing only
   filters, and the form posts a hidden FIPS that is set only by choosing a county.
-- Do not mutate incidents without writing an `audit_log` row.
+- Do not mutate incidents, users, or invitations without writing an `audit_log` row.
 - Do not rely on client-side validation. `max` on a date input is a hint; the server action
   re-validates everything, including that the county actually exists.
 - Do not hard-delete detections — they are soft-deleted so retractions stay auditable.

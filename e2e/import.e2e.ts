@@ -1,15 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-
-const EMAIL = 'e2e-admin@example.com';
-const PASSWORD = 'e2e-test-password-123';
-
-async function signIn(page: Page) {
-	await page.goto('/login');
-	await page.getByLabel('Email').fill(EMAIL);
-	await page.getByLabel('Password').fill(PASSWORD);
-	await page.getByRole('button', { name: /Sign in/ }).click();
-	await expect(page).toHaveURL(/\/admin$/);
-}
+import { signInAs } from './sessions';
 
 const HEADER = 'disease,county_fips,state,county,observed_on,crop,strain,comments';
 
@@ -38,7 +28,7 @@ test.describe('CSV import', () => {
 	test.describe.configure({ mode: 'serial' });
 
 	test('new rows import, and an identical re-import changes nothing', async ({ page }) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		const rows = [
 			'late-blight,19169,,,2023-08-01,Potato,US-23,Imported by e2e',
 			'late-blight,,NE,Lancaster County,2023-08-02,Tomato,,Imported by e2e'
@@ -63,7 +53,7 @@ test.describe('CSV import', () => {
 	test('a conflicting row is never inserted silently; "replace" updates in place', async ({
 		page
 	}) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		await upload(page, 'changed.csv', [
 			'late-blight,19169,,,2023-08-01,Tomato,US-23,Imported by e2e'
 		]);
@@ -82,7 +72,7 @@ test.describe('CSV import', () => {
 	});
 
 	test('"keep both" adds a separate detection', async ({ page }) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		await upload(page, 'second-crop.csv', [
 			'late-blight,19169,,,2023-08-01,Onion,,Imported by e2e'
 		]);
@@ -95,7 +85,7 @@ test.describe('CSV import', () => {
 	});
 
 	test('one bad row blocks the whole file, and says which row and why', async ({ page }) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		await upload(page, 'bad.csv', [
 			'late-blight,31055,,,2023-09-01,Potato,,Imported by e2e',
 			'late-blight,,VA,Richmond,2023-09-02,Potato,,Imported by e2e',
@@ -118,7 +108,7 @@ test.describe('CSV import', () => {
 		page,
 		context
 	}) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		await upload(page, 'stale.csv', [
 			'late-blight,,NE,Lancaster,2023-08-02,Pepper,,Imported by e2e'
 		]);
@@ -142,7 +132,7 @@ test.describe('CSV import', () => {
 	});
 
 	test('the template downloads, and its example row cannot be imported as-is', async ({ page }) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		const res = await page.request.get('/admin/import/template.csv');
 		expect(res.status()).toBe(200);
 		const text = await res.text();
@@ -165,13 +155,18 @@ test.describe('CSV download', () => {
 		expect(res.status()).toBe(200);
 		expect(res.headers()['content-disposition']).toContain('late-blight-2026.csv');
 
-		const lines = (await res.text())
+		const text = await res.text();
+		const lines = text
 			.replace(/^\uFEFF/, '')
 			.trim()
 			.split(/\r\n/);
+		// The import template's columns, plus the export-only `reported_by`.
 		expect(lines[0]).toBe(
-			'id,disease,county_fips,state,county,observed_on,reported_on,crop,operation_type,strain,source,comments'
+			'id,disease,county_fips,state,county,observed_on,reported_on,crop,operation_type,strain,source,comments,reported_by'
 		);
+		// Who entered each row is public; their email address never is.
+		expect(text).toContain('E2E Reporter · Dev County Extension');
+		expect(text).not.toContain('@example.com');
 		// Every row carries a public ID, never the internal integer key.
 		for (const line of lines.slice(1)) expect(line).toMatch(/^[bcdfghjkmnpqrstvwxz][2-9a-z]{4},/);
 	});
@@ -185,7 +180,7 @@ test.describe('CSV download', () => {
 	});
 
 	test('a download re-imports as entirely already present', async ({ page }) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		const csv = await (
 			await page.request.get('/detections.csv?disease=late-blight&year=2025')
 		).text();
@@ -219,7 +214,7 @@ test.describe('admin guard', () => {
 
 test.describe('single-entry duplicate warning', () => {
 	test('a same-day detection warns, and "add anyway" saves it', async ({ page }) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		const add = async () => {
 			await page.goto('/admin/incidents/new');
 			await page.selectOption('#diseaseId', { label: 'Late blight' });

@@ -1,15 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-
-const EMAIL = 'e2e-admin@example.com';
-const PASSWORD = 'e2e-test-password-123';
-
-async function signIn(page: Page) {
-	await page.goto('/login');
-	await page.getByLabel('Email').fill(EMAIL);
-	await page.getByLabel('Password').fill(PASSWORD);
-	await page.getByRole('button', { name: /Sign in/ }).click();
-	await expect(page).toHaveURL(/\/admin$/);
-}
+import { signInAs } from './sessions';
 
 /** Types into the county picker and takes the first match with Enter, as a keyboard user would. */
 async function pickCounty(page: Page, query: string) {
@@ -25,7 +15,7 @@ test.describe('admin detection management', () => {
 	test('the full lifecycle, through the modal: create, appear publicly, edit, retract, restore', async ({
 		page
 	}) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		const dialog = page.getByRole('dialog');
 		const row = () => page.locator('tr', { hasText: COUNTY_LABEL });
 
@@ -89,7 +79,7 @@ test.describe('admin detection management', () => {
 	});
 
 	test('the edit page still works on its own, for direct links', async ({ page }) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		const href = await page.getByRole('link', { name: 'Edit' }).first().getAttribute('href');
 		await page.goto(href!);
 		await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible();
@@ -97,7 +87,7 @@ test.describe('admin detection management', () => {
 	});
 
 	test('a modal with unsaved changes asks before closing', async ({ page }) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		const dialog = page.getByRole('dialog');
 		await page.getByRole('link', { name: 'Edit' }).first().click();
 		// Focus moving in marks the dialog as ready; before that it ignores outside clicks,
@@ -110,6 +100,7 @@ test.describe('admin detection management', () => {
 
 		// A change, then undone: nothing to lose, so it still closes.
 		await page.getByRole('link', { name: 'Edit' }).first().click();
+		await expect(page.locator('#diseaseId')).toBeFocused();
 		const original = await page.inputValue('#comments');
 		await page.fill('#comments', original + ' draft');
 		await page.fill('#comments', original);
@@ -118,6 +109,7 @@ test.describe('admin detection management', () => {
 
 		// A real change: outside click, Escape, and Back all ask first.
 		await page.getByRole('link', { name: 'Edit' }).first().click();
+		await expect(page.locator('#diseaseId')).toBeFocused();
 		await page.fill('#comments', original + ' unsaved');
 		const prompt = dialog.getByText('Discard unsaved changes?');
 
@@ -141,7 +133,7 @@ test.describe('admin detection management', () => {
 	});
 
 	test('a refused save stays in the modal with what was typed', async ({ page }) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		const dialog = page.getByRole('dialog');
 		await page.getByRole('link', { name: 'Add detection' }).click();
 		await pickCounty(page, 'Polk Iowa');
@@ -161,7 +153,7 @@ test.describe('admin detection management', () => {
 	});
 
 	test('the county picker searches, and only a chosen county can be saved', async ({ page }) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		const dialog = page.getByRole('dialog');
 		await page.getByRole('link', { name: 'Add detection' }).click();
 		const county = page.locator('#countyFips');
@@ -200,7 +192,7 @@ test.describe('admin detection management', () => {
 	});
 
 	test('a report dated before the observation cannot be saved', async ({ page }) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		const dialog = page.getByRole('dialog');
 		await page.getByRole('link', { name: 'Edit' }).first().click();
 		const save = dialog.getByRole('button', { name: 'Save changes' });
@@ -224,7 +216,7 @@ test.describe('admin detection management', () => {
 	});
 
 	test('Cancel behaves like clicking outside the modal', async ({ page }) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		const dialog = page.getByRole('dialog');
 
 		await page.getByRole('link', { name: 'Edit' }).first().click();
@@ -240,7 +232,7 @@ test.describe('admin detection management', () => {
 	});
 
 	test('filters apply as they change, and can be reset', async ({ page }) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		const reset = page.getByRole('link', { name: 'Reset filters' });
 		await expect(reset).toHaveCount(0);
 
@@ -266,13 +258,13 @@ test.describe('admin detection management', () => {
 	});
 
 	test('the old list URL redirects, keeping its filters', async ({ page }) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		await page.goto('/admin/incidents?year=2026');
 		await expect(page).toHaveURL(/\/admin\?year=2026$/);
 	});
 
 	test('an admin can edit a detection from the public map', async ({ page }) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		await page.goto('/?disease=late-blight&year=2026');
 		const card = page.locator('li[data-fips="55025"]').first();
 		await card.getByRole('button', { name: /^Details:/ }).click();
@@ -300,7 +292,7 @@ test.describe('admin detection management', () => {
 	});
 
 	test('a future observation date is refused', async ({ page }) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		await page.goto('/admin/incidents/new');
 		await pickCounty(page, 'Polk Iowa');
 		// Bypass the input's max attribute the way a crafted request would.
@@ -316,7 +308,7 @@ test.describe('admin detection management', () => {
 	});
 
 	test('a county outside the database is refused', async ({ page }) => {
-		await signIn(page);
+		await signInAs(page, 'admin');
 		await page.goto('/admin/incidents/new');
 		await page.fill('#observedOn', '2026-09-05');
 		// 02013 is an Alaska borough — real FIPS, deliberately out of scope. Forge the post

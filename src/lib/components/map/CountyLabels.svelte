@@ -8,7 +8,7 @@
 </script>
 
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import type { Map as MapLibreMap } from 'maplibre-gl';
 	import { labelBox, leaderEnd, placeLabels, type Offset } from '$lib/map/labels';
 
@@ -119,8 +119,12 @@
 		};
 		// Re-place once the view settles: zooming changes how far apart counties are, so
 		// a layout that worked at one zoom can overlap at another.
+		//
+		// MapLibre can fire `moveend` synchronously — when an `easeTo` interrupts another
+		// animation, inside whatever effect called it. A bare `frame++` there would read
+		// `frame` in that effect, subscribe it, and loop (`effect_update_depth_exceeded`).
 		const onSettle = () => {
-			frame++;
+			untrack(() => frame++);
 			tick().then(relayout);
 		};
 		map.on('move', onMove);

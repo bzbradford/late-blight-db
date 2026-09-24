@@ -8,8 +8,8 @@
 /** A deliberate cap: past ~10, labels crowd the map into illegibility. */
 export const MAX_LABELS = 10;
 
-/** Default window when labels are first turned on — a weekly newsletter's "this week". */
-export const DEFAULT_LABEL_DAYS = 7;
+/** Default label window: the last two weeks, which is what drives spray timing. */
+export const DEFAULT_LABEL_DAYS = 14;
 
 export type LabelSource = {
 	countyFips: string;
@@ -62,7 +62,7 @@ export function daysBetweenIso(from: string, to: string): number {
 /**
  * The end of the slider's range. For the current season that is today; for a past one it
  * is the season's last detection, so "the last 7 days" means the end of that season
- * rather than a week of December with nothing in it.
+ * rather than two weeks of December with nothing in it.
  */
 export function labelRangeEnd(year: number, todayIso: string, detections: LabelSource[]): string {
 	if (Number(todayIso.slice(0, 4)) === year) return todayIso;

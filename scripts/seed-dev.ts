@@ -13,13 +13,13 @@
  *
  * Usage: pnpm seed:dev
  */
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from '../src/lib/server/db/schema';
-import { diseases, incidents } from '../src/lib/server/db/schema';
+import { diseases, incidents, invitations, user } from '../src/lib/server/db/schema';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) throw new Error('DATABASE_URL is not set');
@@ -51,6 +51,10 @@ type Row = {
 	strain?: string;
 	comments?: string;
 	source?: string;
+	/** Entered by the dev reporter rather than the dev admin. */
+	byReporter?: boolean;
+	/** Came in by CSV import — shown as "Imported by". */
+	imported?: boolean;
 };
 
 // Late blight — potato/tomato production areas.
@@ -62,7 +66,8 @@ const LATE_BLIGHT: Row[] = [
 		operationType: 'Commercial farm',
 		strain: 'US-23',
 		comments: 'Lesions on lower leaves following a week of cool wet weather.',
-		source: 'UW-Madison Plant Disease Diagnostic Clinic'
+		source: 'UW-Madison Plant Disease Diagnostic Clinic',
+		byReporter: true
 	},
 	{
 		fips: '55078',
@@ -89,9 +94,22 @@ const LATE_BLIGHT: Row[] = [
 	// the most recent for the current-year ramp.
 	{ fips: '55025', observedOn: daysAgo(28), crop: 'Tomato', operationType: 'Market garden' },
 	// Prior season — drives the first-detection timing ramp.
-	{ fips: '23019', observedOn: onDate(lastYear, 7, 14), crop: 'Potato', strain: 'US-23' },
-	{ fips: '26077', observedOn: onDate(lastYear, 8, 2), crop: 'Potato' },
-	{ fips: '36011', observedOn: onDate(lastYear, 9, 11), crop: 'Tomato', strain: 'US-23' }
+	// Back-loaded by CSV import.
+	{
+		fips: '23019',
+		observedOn: onDate(lastYear, 7, 14),
+		crop: 'Potato',
+		strain: 'US-23',
+		imported: true
+	},
+	{ fips: '26077', observedOn: onDate(lastYear, 8, 2), crop: 'Potato', imported: true },
+	{
+		fips: '36011',
+		observedOn: onDate(lastYear, 9, 11),
+		crop: 'Tomato',
+		strain: 'US-23',
+		imported: true
+	}
 ];
 
 // Cucurbit downy mildew — typically moves north through the season.
@@ -101,9 +119,16 @@ const CDM: Row[] = [
 		observedOn: daysAgo(5),
 		crop: 'Cucumber',
 		operationType: 'Commercial farm',
-		comments: 'Confirmed on scouting; sporulation on leaf undersides.'
+		comments: 'Confirmed on scouting; sporulation on leaf undersides.',
+		byReporter: true
 	},
-	{ fips: '39051', observedOn: daysAgo(12), crop: 'Cucumber', operationType: 'Commercial farm' },
+	{
+		fips: '39051',
+		observedOn: daysAgo(12),
+		crop: 'Cucumber',
+		operationType: 'Commercial farm',
+		byReporter: true
+	},
 	{ fips: '26021', observedOn: daysAgo(24), crop: 'Cucurbits', operationType: 'Commercial farm' },
 	{ fips: '55025', observedOn: daysAgo(35), crop: 'Pumpkin', operationType: 'Market garden' },
 	{ fips: '13107', observedOn: onDate(lastYear, 6, 22), crop: 'Cucumber' },
@@ -111,14 +136,23 @@ const CDM: Row[] = [
 ];
 
 /**
- * A known admin account so the end-to-end suite is reproducible from a clean
- * checkout. These credentials are fixed and public — which is exactly why this
- * script refuses to run under NODE_ENV=production.
+ * Known accounts so the end-to-end suite is reproducible from a clean checkout. These
+ * credentials are fixed and public — which is exactly why this script refuses to run
+ * under NODE_ENV=production.
  */
 const DEV_ADMIN = {
 	email: 'e2e-admin@example.com',
 	name: 'E2E Admin',
-	password: 'e2e-test-password-123'
+	affiliation: 'Dev Extension Office',
+	password: 'e2e-test-password-123',
+	role: 'admin'
+};
+const DEV_REPORTER = {
+	email: 'e2e-reporter@example.com',
+	name: 'E2E Reporter',
+	affiliation: 'Dev County Extension',
+	password: 'e2e-test-password-456',
+	role: 'reporter'
 };
 
 const client = postgres(DATABASE_URL);
@@ -134,17 +168,9 @@ try {
 		throw new Error('Diseases are not seeded. Run `pnpm seed` first.');
 	}
 
-	await db.execute(sql`truncate table ${incidents} restart identity cascade`);
-
-	const values = [
-		...LATE_BLIGHT.map((r) => ({ ...r, diseaseId: lateBlightId })),
-		...CDM.map((r) => ({ ...r, diseaseId: cdmId }))
-	].map(({ fips, ...r }) => ({ ...r, countyFips: fips }));
-
-	await db.insert(incidents).values(values);
-
-	// Provision the development admin through Better Auth so the password hash matches
-	// what the app will verify against.
+	// Provision the development accounts through Better Auth so the password hashes match
+	// what the app will verify against. Role, profile, and active status are reset every
+	// run, so a test that deactivated or demoted one can't leak into the next run.
 	const auth = betterAuth({
 		secret: process.env.BETTER_AUTH_SECRET ?? 'dev-only-secret-not-used-in-production',
 		baseURL: process.env.ORIGIN ?? 'http://localhost:5173',
@@ -152,27 +178,67 @@ try {
 		emailAndPassword: { enabled: true, minPasswordLength: 12 }
 	});
 	const ctx = await auth.$context;
-	const hash = await ctx.password.hash(DEV_ADMIN.password);
-	const existing = await ctx.internalAdapter.findUserByEmail(DEV_ADMIN.email);
 
-	if (existing) {
-		await ctx.internalAdapter.updatePassword(existing.user.id, hash);
-	} else {
-		const user = await ctx.internalAdapter.createUser({
-			email: DEV_ADMIN.email,
-			name: DEV_ADMIN.name,
-			emailVerified: true
-		});
-		await ctx.internalAdapter.createAccount({
-			userId: user.id,
-			providerId: 'credential',
-			accountId: user.id,
-			password: hash
-		});
+	async function provision(account: typeof DEV_ADMIN): Promise<string> {
+		const hash = await ctx.password.hash(account.password);
+		const existing = await ctx.internalAdapter.findUserByEmail(account.email);
+		let id: string;
+		if (existing) {
+			id = existing.user.id;
+			await ctx.internalAdapter.updatePassword(id, hash);
+		} else {
+			const created = await ctx.internalAdapter.createUser({
+				email: account.email,
+				name: account.name,
+				emailVerified: true
+			});
+			id = created.id;
+			await ctx.internalAdapter.createAccount({
+				userId: id,
+				providerId: 'credential',
+				accountId: id,
+				password: hash
+			});
+		}
+		await db
+			.update(user)
+			.set({
+				name: account.name,
+				affiliation: account.affiliation,
+				role: account.role,
+				// Fixed and early, so the dev admin outranks any admin the e2e suite invites.
+				adminSince: account.role === 'admin' ? new Date('2020-01-01T12:00:00Z') : null,
+				deactivatedAt: null
+			})
+			.where(eq(user.id, id));
+		return id;
 	}
+
+	// Accounts the e2e suite created by invitation on earlier runs. The app never deletes
+	// users, but these are throwaway fixtures in a development database.
+	await db.execute(sql`delete from ${invitations}`);
+	await db.execute(sql`delete from ${user} where ${user.email} like 'invitee-%@example.com'`);
+
+	const adminId = await provision(DEV_ADMIN);
+	const reporterId = await provision(DEV_REPORTER);
+
+	await db.execute(sql`truncate table ${incidents} restart identity cascade`);
+
+	const values = [
+		...LATE_BLIGHT.map((r) => ({ ...r, diseaseId: lateBlightId })),
+		...CDM.map((r) => ({ ...r, diseaseId: cdmId }))
+	].map(({ fips, byReporter, imported, ...r }) => ({
+		...r,
+		countyFips: fips,
+		createdBy: byReporter ? reporterId : adminId,
+		imported: imported ?? false
+	}));
+
+	await db.insert(incidents).values(values);
 
 	console.log(`Seeded ${values.length} synthetic detections.`);
 	console.log(`  dev admin: ${DEV_ADMIN.email} / ${DEV_ADMIN.password}`);
+	console.log(`  dev reporter: ${DEV_REPORTER.email} / ${DEV_REPORTER.password}`);
 	console.log(`  late blight: ${LATE_BLIGHT.length}, cucurbit downy mildew: ${CDM.length}`);
 	console.log(`  years: ${lastYear}, ${thisYear}`);
 } finally {

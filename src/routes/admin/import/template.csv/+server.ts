@@ -1,4 +1,4 @@
-import { emptyRecord, TEMPLATE_EXAMPLE_COMMENT } from '$lib/csv/columns';
+import { CSV_COLUMNS, emptyRecord, TEMPLATE_EXAMPLE_COMMENT } from '$lib/csv/columns';
 import { toCsv } from '$lib/csv/io';
 import type { RequestHandler } from './$types';
 
@@ -18,7 +18,7 @@ export const GET: RequestHandler = () => {
 		source: 'UW-Madison Plant Disease Diagnostic Clinic',
 		comments: TEMPLATE_EXAMPLE_COMMENT
 	};
-	return new Response(toCsv([example]), {
+	return new Response(toCsv([example], CSV_COLUMNS), {
 		headers: {
 			'content-type': 'text/csv; charset=utf-8',
 			'content-disposition': 'attachment; filename="detections-template.csv"'

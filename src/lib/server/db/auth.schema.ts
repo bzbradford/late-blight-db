@@ -11,7 +11,12 @@ export const user = pgTable('user', {
 	updatedAt: timestamp('updated_at')
 		.defaultNow()
 		.$onUpdate(() => /* @__PURE__ */ new Date())
-		.notNull()
+		.notNull(),
+	role: text('role').default('reporter').notNull(),
+	affiliation: text('affiliation'),
+	deactivatedAt: timestamp('deactivated_at'),
+	lastSignInAt: timestamp('last_sign_in_at'),
+	adminSince: timestamp('admin_since')
 });
 
 export const session = pgTable(

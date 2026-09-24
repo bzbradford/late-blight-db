@@ -1,5 +1,6 @@
 import { relations, sql } from 'drizzle-orm';
 import {
+	boolean,
 	char,
 	date,
 	index,
@@ -90,7 +91,12 @@ export const incidents = pgTable(
 		latitude: numeric('latitude', { precision: 8, scale: 5, mode: 'number' }),
 		longitude: numeric('longitude', { precision: 9, scale: 5, mode: 'number' }),
 
+		// Who entered it — shown publicly as "Reported by". Users are deactivated, never
+		// deleted, so this only goes null for rows that never had a creator (seed data).
 		createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
+		// Came in through CSV import: back-loaded history, shown as "Imported by" so it
+		// doesn't read as a first-hand report from whoever ran the import.
+		imported: boolean('imported').notNull().default(false),
 		createdAt: timestamp('created_at').notNull().defaultNow(),
 		updatedAt: timestamp('updated_at')
 			.notNull()
@@ -122,6 +128,34 @@ export const auditLog = pgTable(
 		createdAt: timestamp('created_at').notNull().defaultNow()
 	},
 	(t) => [index('audit_log_table_row_idx').on(t.tableName, t.rowId)]
+);
+
+/**
+ * One-time links: `invite` creates an account, `reset` sets a new password on one. There
+ * is no email sending — an admin copies the link and sends it themselves.
+ *
+ * Only a SHA-256 of the token is stored, so a database read can't be turned into a
+ * working link. A link is usable while `usedAt`, `revokedAt` are null and `expiresAt` is
+ * in the future.
+ */
+export const invitations = pgTable(
+	'invitations',
+	{
+		id: serial('id').primaryKey(),
+		tokenHash: char('token_hash', { length: 64 }).notNull().unique(),
+		kind: text('kind').notNull(),
+		email: text('email').notNull(),
+		// The role an invite grants; null for a reset.
+		role: text('role'),
+		// The account a reset applies to; null for an invite until it is accepted.
+		userId: text('user_id').references(() => user.id),
+		createdBy: text('created_by').references(() => user.id),
+		createdAt: timestamp('created_at').notNull().defaultNow(),
+		expiresAt: timestamp('expires_at').notNull(),
+		usedAt: timestamp('used_at'),
+		revokedAt: timestamp('revoked_at')
+	},
+	(t) => [index('invitations_email_idx').on(t.email)]
 );
 
 export const diseasesRelations = relations(diseases, ({ many }) => ({

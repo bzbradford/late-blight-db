@@ -1,6 +1,10 @@
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { counties, diseases, incidents } from '$lib/server/db/schema';
+import { canEditIncident, type Viewer } from '$lib/auth/roles';
+import { counties, diseases, incidents, user } from '$lib/server/db/schema';
+
+/** Who entered a detection, as shown publicly. Never the email address or user ID. */
+export type ReportedBy = { name: string; affiliation: string | null };
 
 export type Detection = {
 	id: number;
@@ -16,6 +20,12 @@ export type Detection = {
 	strain: string | null;
 	comments: string | null;
 	source: string | null;
+	/** Null for rows with no creator (seed data). */
+	reportedBy: ReportedBy | null;
+	/** Came in by CSV import, so `reportedBy` is who imported it — "Imported by". */
+	imported: boolean;
+	/** The viewer may edit it. Computed per request; false for the public. */
+	canEdit: boolean;
 };
 
 export type CountyAggregateRow = {
@@ -38,8 +48,12 @@ function visible(diseaseSlug: string, year: number) {
 	);
 }
 
-export async function getDetections(diseaseSlug: string, year: number): Promise<Detection[]> {
-	return db
+export async function getDetections(
+	diseaseSlug: string,
+	year: number,
+	viewer: Viewer | null = null
+): Promise<Detection[]> {
+	const rows = await db
 		.select({
 			id: incidents.id,
 			publicId: incidents.publicId,
@@ -52,13 +66,26 @@ export async function getDetections(diseaseSlug: string, year: number): Promise<
 			operationType: incidents.operationType,
 			strain: incidents.strain,
 			comments: incidents.comments,
-			source: incidents.source
+			source: incidents.source,
+			imported: incidents.imported,
+			createdBy: incidents.createdBy,
+			reporterName: user.name,
+			reporterAffiliation: user.affiliation
 		})
 		.from(incidents)
 		.innerJoin(diseases, eq(diseases.id, incidents.diseaseId))
 		.innerJoin(counties, eq(counties.fips, incidents.countyFips))
+		.leftJoin(user, eq(user.id, incidents.createdBy))
 		.where(visible(diseaseSlug, year))
 		.orderBy(desc(incidents.observedOn), desc(incidents.id));
+
+	// The creator's user ID is used here and dropped: it never leaves the server.
+	return rows.map(({ createdBy, reporterName, reporterAffiliation, ...r }) => ({
+		...r,
+		reportedBy:
+			reporterName === null ? null : { name: reporterName, affiliation: reporterAffiliation },
+		canEdit: canEditIncident(viewer, createdBy)
+	}));
 }
 
 /**
@@ -106,6 +133,8 @@ export type ExportRow = {
 	strain: string | null;
 	source: string | null;
 	comments: string | null;
+	reportedBy: ReportedBy | null;
+	imported: boolean;
 };
 
 /**
@@ -116,7 +145,7 @@ export async function getDetectionsForExport(
 	diseaseSlug: string,
 	year: number | null
 ): Promise<ExportRow[]> {
-	return db
+	const rows = await db
 		.select({
 			publicId: incidents.publicId,
 			diseaseSlug: diseases.slug,
@@ -129,11 +158,15 @@ export async function getDetectionsForExport(
 			operationType: incidents.operationType,
 			strain: incidents.strain,
 			source: incidents.source,
-			comments: incidents.comments
+			comments: incidents.comments,
+			imported: incidents.imported,
+			reporterName: user.name,
+			reporterAffiliation: user.affiliation
 		})
 		.from(incidents)
 		.innerJoin(diseases, eq(diseases.id, incidents.diseaseId))
 		.innerJoin(counties, eq(counties.fips, incidents.countyFips))
+		.leftJoin(user, eq(user.id, incidents.createdBy))
 		.where(
 			and(
 				eq(diseases.slug, diseaseSlug),
@@ -142,4 +175,10 @@ export async function getDetectionsForExport(
 			)
 		)
 		.orderBy(desc(incidents.observedOn), desc(incidents.id));
+
+	return rows.map(({ reporterName, reporterAffiliation, ...r }) => ({
+		...r,
+		reportedBy:
+			reporterName === null ? null : { name: reporterName, affiliation: reporterAffiliation }
+	}));
 }

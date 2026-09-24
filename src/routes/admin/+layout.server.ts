@@ -10,5 +10,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		const redirectTo = encodeURIComponent(url.pathname + url.search);
 		redirect(303, `/login?redirectTo=${redirectTo}`);
 	}
-	return { user: { name: locals.user.name, email: locals.user.email } };
+	return {
+		user: { id: locals.user.id, name: locals.user.name, role: locals.user.role }
+	};
 };

@@ -51,9 +51,9 @@ describe('label date range', () => {
 		expect(labelRangeEnd(2024, '2026-09-23', [])).toBe('2024-12-31');
 	});
 
-	it('defaults to the last week, but not before January', () => {
-		expect(defaultLabelSince(2026, '2026-09-23')).toBe('2026-09-16');
-		expect(defaultLabelSince(2026, '2026-01-03')).toBe('2026-01-01');
+	it('defaults to the last two weeks, but not before January', () => {
+		expect(defaultLabelSince(2026, '2026-09-23')).toBe('2026-09-09');
+		expect(defaultLabelSince(2026, '2026-01-10')).toBe('2026-01-01');
 	});
 
 	it('does calendar arithmetic across month and year ends', () => {

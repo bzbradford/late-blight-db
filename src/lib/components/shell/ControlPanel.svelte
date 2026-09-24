@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
-	import { resolve } from '$app/paths';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import DownloadIcon from '@lucide/svelte/icons/download';
 	import ImageDownIcon from '@lucide/svelte/icons/image-down';
@@ -15,11 +14,10 @@
 		/** How many counties qualify for a label at the current date — see `selectLabels`. */
 		labelTotal: number;
 		downloadHref: string;
-		isAdmin: boolean;
 		onSaveImage: () => Promise<void>;
 	};
 
-	let { view, labelTotal, downloadHref, isAdmin, onSaveImage }: Props = $props();
+	let { view, labelTotal, downloadHref, onSaveImage }: Props = $props();
 
 	let open = $state(false);
 	let saving = $state(false);
@@ -165,15 +163,6 @@
 					Saving an image for print? Newsletters are usually white — switch to light mode first (top
 					right).
 				</p>
-			{/if}
-
-			{#if isAdmin}
-				<a
-					href={resolve('/admin/import')}
-					class="ml-auto text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-				>
-					Import CSV
-				</a>
 			{/if}
 		</div>
 	{/if}

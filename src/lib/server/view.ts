@@ -5,6 +5,7 @@ import {
 	type Detection
 } from '$lib/server/queries/detections';
 import { listYears, type Disease } from '$lib/server/queries/diseases';
+import type { Viewer } from '$lib/auth/roles';
 
 /** Everything the public map needs for one disease-year. */
 export type ViewData = {
@@ -25,7 +26,9 @@ export type ViewData = {
 export async function loadView(
 	diseases: Disease[],
 	requestedDisease: string | null,
-	requestedYear: number
+	requestedYear: number,
+	/** The signed-in user, if any — only decides each detection's `canEdit`. */
+	viewer: Viewer | null
 ): Promise<ViewData> {
 	const disease = diseases.find((d) => d.slug === requestedDisease) ?? diseases[0];
 
@@ -34,7 +37,7 @@ export async function loadView(
 
 	const [aggregates, detections] = await Promise.all([
 		getCountyAggregates(disease.slug, year),
-		getDetections(disease.slug, year)
+		getDetections(disease.slug, year, viewer)
 	]);
 
 	return { activeDisease: disease.slug, activeYear: year, years, aggregates, detections };

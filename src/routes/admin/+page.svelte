@@ -20,8 +20,15 @@
 	let filtered = $derived(
 		data.filters.diseaseId !== undefined ||
 			data.filters.year !== undefined ||
+			data.filters.reportedBy !== undefined ||
 			data.filters.includeDeleted
 	);
+
+	/** You first, then everyone else who has entered something. */
+	let reporterOptions = $derived([
+		{ id: data.viewerId, name: 'Me' },
+		...data.reporters.filter((r) => r.id !== data.viewerId)
+	]);
 
 	/**
 	 * Filters apply as soon as they change. Empty values are left out so the default view is
@@ -108,6 +115,22 @@
 			</select>
 		</div>
 
+		<div class="space-y-1">
+			<label for="filter-reported-by" class="text-xs text-muted-foreground">Reported by</label>
+			<select
+				id="filter-reported-by"
+				name="reportedBy"
+				class="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+			>
+				<option value="" selected={data.filters.reportedBy === undefined}>Anyone</option>
+				{#each reporterOptions as reporter (reporter.id)}
+					<option value={reporter.id} selected={data.filters.reportedBy === reporter.id}>
+						{reporter.name}
+					</option>
+				{/each}
+			</select>
+		</div>
+
 		<label class="flex items-center gap-2 py-1.5 text-sm">
 			<input
 				type="checkbox"
@@ -136,7 +159,7 @@
 	{#if data.incidents.length === 0}
 		<p class="mt-8 text-sm text-muted-foreground">No detections match these filters.</p>
 	{:else}
-		<div class="mt-6 overflow-x-auto">
+		<div class="relative mt-6 overflow-x-auto">
 			<table class="w-full text-sm">
 				<thead class="border-b text-left text-xs text-muted-foreground">
 					<tr>
@@ -146,6 +169,7 @@
 						<th class="py-2 pr-3 font-medium">Disease</th>
 						<th class="py-2 pr-3 font-medium">Crop</th>
 						<th class="py-2 pr-3 font-medium">Strain</th>
+						<th class="py-2 pr-3 font-medium">Reported by</th>
 						<th class="py-2 font-medium"><span class="sr-only">Actions</span></th>
 					</tr>
 				</thead>
@@ -166,10 +190,21 @@
 							<td class="py-2 pr-3">{incident.diseaseName}</td>
 							<td class="py-2 pr-3">{incident.crop ?? '—'}</td>
 							<td class="py-2 pr-3">{incident.strain ?? '—'}</td>
+							<td class="py-2 pr-3">
+								{incident.reporterName ?? '—'}
+								{#if incident.imported}
+									<span class="ml-1 rounded bg-muted px-1.5 py-0.5 text-xs">Imported</span>
+								{/if}
+							</td>
 							<td class="py-2 text-right">
-								<a {href} onclick={(e) => openInModal(e, href)} class="underline underline-offset-4"
-									>Edit</a
-								>
+								<!-- Reporters edit only their own; the page and its actions refuse the rest. -->
+								{#if incident.canEdit}
+									<a
+										{href}
+										onclick={(e) => openInModal(e, href)}
+										class="underline underline-offset-4">Edit</a
+									>
+								{/if}
 							</td>
 						</tr>
 					{/each}

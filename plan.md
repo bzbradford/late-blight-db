@@ -20,6 +20,7 @@ Its durable lessons have been folded into `CLAUDE.md`; the summary below is enou
 | 3     | Auth (D), public data layer (E), map (F)               | ✅ `bcdc73c`, `91ea71e`                    |
 | 4     | Feed + map/feed linking (G), admin CRUD (H)            | ✅ `c0ea24c`, `be51bff`                    |
 | **5** | **Polish — see below**                                 | 🟡 **All tracks ✅; one manual pass left** |
+| 5½    | Accounts: roles, invitations, attribution (5H)         | ✅ Done; two rate-limit follow-ups         |
 | 6     | Deploy (systemd, reverse proxy, backups, health check) | ⏸ Blocked on server details                |
 
 Phase 6 still needs from the user: SSH/host details for the extension server, the production
@@ -587,6 +588,179 @@ Notes:
 
 ---
 
+## Phase 5½ — Accounts and attribution (before Phase 6)
+
+#### Track 5H — Roles, invitations, account page, "Reported by" — ✅ DONE
+
+Settled with the user 2026-09-23. The goal is trust and accountability among ~6–12 reporters:
+every detection names who entered it, and accounts are managed in the app, not by a CLI.
+
+- **D15. Two roles: `admin` and `reporter`.** Both can add, edit, and download detections.
+  Only admins manage accounts and import CSVs. Stored as `user.role` via Better Auth `additionalFields` with
+  `input: false` — otherwise the built-in `updateUser` endpoint would let a user set their own
+  role. Better Auth's admin plugin is **not** used: its impersonation undermines attribution.
+- **D16. Reporters edit, retract, and restore only their own detections.** Admins can act on
+  any. Enforced in the mutations in `queries/admin.ts` (not only in the UI).
+- **D17. "Reported by" is public**: display name and affiliation, on the public detail dialog,
+  the admin list, and the CSV download (export-only column; import ignores it). It means
+  _who entered it_ (`incidents.created_by`); the free-text `source` still records who
+  diagnosed it. Imported rows read **"Imported by"** instead (`incidents.imported`, backfilled from
+  `audit_log`), so back-loaded history doesn't look like a first-hand report. Rows with no creator show "—". Email addresses
+  never appear outside `/admin/users`. The invite-acceptance page says the name is public.
+- **D18. Invitations are copyable one-time links**, no email sending (no SMTP dependency; the
+  deploy stays portable). Token stored hashed, expires in 7 days, single use. The invitee sets
+  their own password, display name, and affiliation. Accounts are created through
+  `auth.$context` (as `create-admin` does), so `disableSignUp` stays on. An admin can issue a
+  **password reset link** by the same mechanism — the only "forgot password" path.
+  `pnpm create-admin` stays for bootstrapping and lockout recovery (it creates admins).
+- **D19. Deactivate, never delete, users.** `created_by` is `on delete set null`, so deleting
+  a user would erase attribution. Deactivating revokes all sessions and blocks sign-in (with
+  the same generic error as a wrong password). Nobody can demote or deactivate themselves,
+  and the last active admin can't be demoted or deactivated.
+- **D20. `/admin/users/**` and `/admin/import/**` are admin-only**, enforced in
+  `guardAdmin` (pages, actions, endpoints). Reporters get no read-only view of either. Import
+  exists to back-load historical detections, not for routine entry, and it can overwrite
+  existing detections ("keep new"), so it stays with admins. `applyImport` also checks the
+  role, so the rule holds if the route ever moves.
+
+**Schema / auth**
+
+- [x] `additionalFields` on `user`: `role` (text, default `reporter`, check constraint),
+      `affiliation` (text, nullable), `deactivatedAt` (timestamp). `pnpm auth:schema`, then a
+      migration that sets existing users to `admin`.
+- [x] `invitations` table: `tokenHash`, `kind` (`invite` | `reset`), `email`, `role`, `userId`
+      (for resets), `createdBy`, `expiresAt`, `usedAt`, `revokedAt`.
+- [x] Sign-in refuses deactivated users (Better Auth `databaseHooks.session.create.before`),
+      and `handleBetterAuth` drops a session whose user has been deactivated since.
+- [x] `guardAdmin`: `/admin/users` and `/admin/import` require `role === 'admin'` (403 for
+      reporters). The Import link and template download are hidden for reporters.
+- [x] `create-admin` sets `role: 'admin'`; `MIN_PASSWORD_LENGTH` now imported from
+      `$lib/validation/account.ts`, so there is nothing to keep in sync.
+
+**Attribution**
+
+- [x] `Actor` carries `role`; `updateIncident` / `retractIncident` / `restoreIncident` refuse
+      when a reporter isn't the creator. `applyImport` refuses non-admins.
+- [x] Edit / Retract hidden in the detail dialog and admin list when not permitted.
+- [x] `reportedBy { name, affiliation }` on the public `Detection` (via `loadView`) and on
+      admin rows; shown in `DetectionDetail` and a list column.
+- [x] Admin list filter: "Reported by" select (users who have entered detections, plus
+      "Mine"), in the query string like the other filters.
+- [x] CSV download: `reported_by` column in `$lib/csv/columns.ts`, export-only.
+
+**Users page (`/admin/users`, admins)**
+
+- [x] Table: name, affiliation, email, role, detections (non-retracted), last sign-in,
+      status (active / invited / deactivated).
+- [x] Invite form (email, role) → shows the link once with a Copy button. Pending invites
+      listed with Revoke.
+- [x] Row actions: change role, deactivate / reactivate, issue reset link. Guards per D19.
+- [x] Every account action writes an `audit_log` row (`table_name = 'user'` / `'invitations'`).
+
+**Invitation / reset acceptance (`/invite/[token]`, public)**
+
+- [x] Invalid, used, expired, and revoked tokens all show the same message.
+- [x] Invite: display name, affiliation, password + confirm (min 12). Reset: password only.
+      Signs the user in afterwards. (No extra rate limit: a 256-bit token can't be guessed.)
+
+**Account page (`/admin/account`, everyone)**
+
+- [x] Change password (Better Auth `changePassword`, current password required, revokes
+      other sessions).
+- [x] Edit display name and affiliation (server action, not `updateUser`, so `role` stays
+      out of reach). Header "Signed in as …" shows the display name and links here.
+
+**Tests**
+
+- [~] Unit: permission checks per role, path rules, profile/password validation. The
+  last-admin guard and token handling are database code, covered by e2e (single use,
+  unknown link, self-guard) — **expiry itself is not tested**.
+- [x] e2e: invite → accept → sign in as reporter; reporter can't reach `/admin/users` (page
+      or action) or `/admin/import` (page or action); reporter edits own but not another's; reset
+      link; change password; deactivated user can't sign in;
+      "Reported by" in the public detail and CSV.
+- [x] `seed:dev` creates a dev reporter alongside the dev admin; README lists both.
+
+**Acceptance:** no account-management write is reachable by a reporter; no reporter can
+change a detection they didn't enter or reach import; every detection shows who
+entered it without exposing an email address; the CLI is no longer needed to add a user.
+✅ 85/85 e2e twice in a row; screenshot-checked desktop light, 390 px dark, invite page.
+
+Notes from implementation:
+
+- Reset links last **2 days** (invites 7): a reset takes over an account that already has
+  detections. A new link for the same address or account revokes the previous one.
+- Accepting an invite and using a reset link sign the user in via `auth.api.signInEmail`;
+  resetting also ends every existing session for that account.
+- `lastSignInAt` is written by a `session.create.after` hook — sessions are deleted on
+  sign-out and expiry, so they can't answer "last signed in".
+- `/update-user` and `/change-password` are in Better Auth's `disabledPaths` (HTTP only):
+  otherwise both were unaudited routes to profile/password changes. e2e checks a reporter's
+  `update-user` with `role: 'admin'` gets a 404.
+- Fixture detections are now attributed: 3 to the dev reporter, the rest to the dev admin,
+  last season's late blight marked imported. The e2e suite signs each seeded account in
+  once (`e2e/auth.setup.ts`, a Playwright setup project) and reuses the session.
+- Fixed in passing: `/admin` scrolled sideways at phone width (508 px on a 390 px screen).
+  The `sr-only` "Actions" header is absolutely positioned and escaped its scroll container;
+  the containers are now `relative`.
+- The user/invitations `CHECK` constraints are hand-written at the end of
+  `drizzle/0004_accounts.sql` (Better Auth owns the user table's schema file). drizzle-kit
+  doesn't know them, so it won't recreate them — keep them in mind if the table is rebuilt.
+
+**5H follow-up (2026-09-24), settled with the user:**
+
+- **D21. Admin seniority.** An admin can change another admin's account — role, email,
+  reset link, deactivation, reactivation — only if they became an admin first
+  (`user.admin_since`, set on promotion and cleared on demotion). Someone you promote can
+  never demote or lock you out. Removing the most senior admin is done with
+  `pnpm create-admin --deactivate`; the app keeps at least one active admin either way.
+- [x] `admin_since` column (migration 0005 backfills from `created_at`; check constraint ties
+      it to `role`). `canManageUser` in `roles.ts` (unit-tested); `managed()` locks both rows
+      and applies it in every account action.
+- [x] Users page: **Change role** and **Change email** open a dialog (role options say what
+      each allows; email says they'll be signed out), **Reset password** replaces "Reset
+      link", the issued-link panel has a dismiss button. Rows sort active admins (most senior
+      first), then reporters, then deactivated. New columns: admin since, **Added by**
+      (inviter). Senior admins' rows read "Admin before you", with no actions.
+- [x] Email changes are admin-only: unique, not a pending invitation, sessions ended, unused
+      reset links revoked, audited. Reporters ask an admin.
+- [x] e2e: dialog promote → junior admin sees no actions on the founder and every direct
+      POST is refused → founder demotes them; email change (taken address refused in the
+      dialog; old session ends; sign in with the new one); dismiss; admins-first order.
+
+**Polish (2026-09-24), from the user:**
+
+- **D22. County labels are on by default**, over the last **14 days** (was off, 7 days).
+  Share links now say `labels=off` when they're off, since on is the default. Revises D1–D2.
+  Consequence: hover/tap tooltips now show while labelling (they used to be suppressed so
+  they wouldn't land in screenshots; "Save image" draws from data and never includes one).
+- [x] "Import CSV" removed from the map tools panel (it's in the admin header).
+- [x] The top bar's link reads "Account" for reporters, "Administration" for admins.
+- [x] Admin header: "← Back to map" at the far left, replacing "View public map".
+- [x] **Fixed a real bug this exposed:** labels on + arriving on a county (share link)
+      looped forever (`effect_update_depth_exceeded`), leaving the map never settled.
+      `easeTo` interrupting the arrival animation fires `moveend` synchronously inside the
+      fly effect, and the labels' `frame++` read `frame` there and subscribed the effect.
+      Both ends are now `untrack`ed. Previously reachable only via a link carrying both
+      `since` and `county`.
+- [x] Test races fixed: the label-drag and "Save image" tests measured while the tools panel
+      was still sliding open; the unsaved-changes test clicked outside a modal before it was
+      ready. 88/88 e2e three runs in a row.
+
+**Follow-ups found during 5H (not done):**
+
+- [ ] **The sign-in form is not rate-limited.** `/login` calls `auth.api.signInEmail`
+      server-side, and Better Auth only rate-limits HTTP requests to its own handler —
+      probed: 7 wrong passwords in a row via `/login` were all answered, none refused. The
+      "Too many attempts" branch in the login action is unreachable. Needs a limiter in
+      the action itself (keyed on `event.getClientAddress()` and the address), or the form
+      posting to the handler.
+- [ ] **Better Auth's own limiter shares one bucket across all clients** behind adapter-node:
+      it can't find a client IP ("falling back to a single shared per-path bucket"). Set
+      `advanced.ipAddress.ipAddressHeaders` to the reverse proxy's header in Phase 6.
+
+---
+
 ## Session log
 
 Append one line per working session: date, what moved, what's next.
@@ -625,3 +799,17 @@ Append one line per working session: date, what moved, what's next.
   contrast check, map loading state, root error page, 360 px layout, OG tags. Lighthouse
   a11y 100 on /, /about, /login, /admin. 140 unit / 73 e2e green. Next: a manual
   end-to-end admin pass, then Phase 6 (still blocked on server details).
+- 2026-09-23 — Planned Track 5H (D15–D20): admin/reporter roles, reporters edit only their
+  own detections, in-app invite and reset links, account page, public "Reported by".
+  Import is admin-only (back-loading, not routine entry). Next: implement 5H.
+- 2026-09-23 — 5H done: admin/reporter roles, reporters edit only their own, in-app invite and
+  reset links, account page (password + profile), users page with detection counts and
+  deactivation, public "Reported by"/"Imported by" (detail, admin list + filter, CSV). Found:
+  the `/login` form has no effective rate limit. 153 unit / 85 e2e green. Next: fix sign-in
+  rate limiting, then Phase 6.
+- 2026-09-24 — D21 admin seniority; role/email changes through dialogs; "Reset password";
+  dismissible link panel; admins sorted first with "admin since" and "added by";
+  `create-admin --deactivate/--reactivate`. Next: sign-in rate limiting, then Phase 6.
+- 2026-09-24 — D22 labels on by default (14 days); map-tools Import link removed; "Account"
+  for reporters; "Back to map". Fixed the labels + share-link effect loop and three e2e
+  races. Next: sign-in rate limiting, then Phase 6.

@@ -7,6 +7,7 @@ import {
 	type PreparedImport
 } from '$lib/server/import';
 import { applyImport } from '$lib/server/queries/admin';
+import { viewerOf } from '$lib/auth/roles';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => ({
@@ -60,7 +61,7 @@ export const actions: Actions = {
 
 	confirm: async ({ request, locals }) => {
 		// guardAdmin in hooks.server.ts has already refused anonymous requests.
-		const actor = { id: locals.user!.id };
+		const actor = viewerOf(locals.user!);
 		const form = await request.formData();
 		const csv = String(form.get('csv') ?? '');
 		const fileName = String(form.get('fileName') ?? '').slice(0, 200) || 'upload.csv';

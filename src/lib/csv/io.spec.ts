@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyRecord, escapeCell, unescapeCell, type CsvRecord } from './columns';
+import { CSV_COLUMNS, emptyRecord, escapeCell, unescapeCell, type CsvRecord } from './columns';
 import { parseCsv, toCsv } from './io';
 
 function record(overrides: Partial<CsvRecord>): CsvRecord {
@@ -49,14 +49,14 @@ describe('toCsv / parseCsv', () => {
 	];
 
 	it('round-trips records, including quotes, commas, line breaks, and formula text', () => {
-		const parsed = parseCsv(toCsv(rows));
+		const parsed = parseCsv(toCsv(rows, CSV_COLUMNS));
 		expect(parsed.ok).toBe(true);
 		if (!parsed.ok) return;
 		expect(parsed.rows.map((r) => r.record)).toEqual(rows);
 	});
 
 	it('writes a byte-order mark and neutralises formulas in the file itself', () => {
-		const text = toCsv(rows);
+		const text = toCsv(rows, CSV_COLUMNS);
 		expect(text.startsWith('\uFEFF')).toBe(true);
 		expect(text).toContain(`'=cmd|calc`);
 	});

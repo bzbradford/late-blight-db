@@ -25,6 +25,14 @@ export type CsvColumn = (typeof CSV_COLUMNS)[number];
 export type CsvRecord = Record<CsvColumn, string>;
 
 /**
+ * The public download adds who entered each row. Export-only: the importer ignores
+ * unknown columns, so a downloaded file still re-imports, and an import is always
+ * credited to the admin running it.
+ */
+export const EXPORT_COLUMNS = [...CSV_COLUMNS, 'reported_by'] as const;
+export type ExportRecord = Record<(typeof EXPORT_COLUMNS)[number], string>;
+
+/**
  * Characters that make a spreadsheet treat a cell as a formula. `comments` is free text,
  * and growers open these files in Excel, so a cell like `=HYPERLINK(...)` must not run.
  */

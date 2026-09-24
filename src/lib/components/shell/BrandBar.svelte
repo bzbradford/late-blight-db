@@ -5,7 +5,7 @@
 	import SunIcon from '@lucide/svelte/icons/sun';
 	import { theme } from '$lib/state/theme.svelte';
 
-	let { isAdmin = false }: { isAdmin?: boolean } = $props();
+	let { signedIn = false, isAdmin = false }: { signedIn?: boolean; isAdmin?: boolean } = $props();
 </script>
 
 <!--
@@ -22,9 +22,10 @@
 		University of Wisconsin–Madison
 	</a>
 
-	{#if isAdmin}
+	{#if signedIn}
 		<a href={resolve('/admin')} class="text-white/90 hover:text-white hover:underline">
-			Administration
+			<!-- Reporters don't administer anything; for them this is their own corner. -->
+			{isAdmin ? 'Administration' : 'Account'}
 		</a>
 		<!-- POST-only: a GET-triggerable sign-out can be fired by any embedded image. -->
 		<form method="POST" action="/logout" use:enhance>

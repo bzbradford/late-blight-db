@@ -39,10 +39,23 @@ export class ViewState {
 
 	#inflight: AbortController | null = null;
 
-	constructor(initial: ViewData, selectedCounty: string | null, labelsSince: string | null = null) {
+	/**
+	 * @param labels From the arrival URL: a fixed start date, off, or (the usual case) on
+	 *   over the default window.
+	 */
+	constructor(
+		initial: ViewData,
+		selectedCounty: string | null,
+		labels: { since: string } | 'off' | 'default' = 'default'
+	) {
 		this.#apply(initial);
 		this.selectedCounty = selectedCounty;
-		this.labelsSince = labelsSince;
+		this.labelsSince =
+			labels === 'off'
+				? null
+				: labels === 'default'
+					? defaultLabelSince(this.year, this.labelEnd)
+					: labels.since;
 	}
 
 	#apply(data: ViewData) {
@@ -143,7 +156,9 @@ export class ViewState {
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams({ disease: this.disease, year: String(this.year) });
 		if (this.selectedCounty) params.set('county', this.selectedCounty);
+		// Labels are on by default, so it is turning them off that needs saying.
 		if (this.labelsSince) params.set('since', this.labelsSince);
+		else params.set('labels', 'off');
 		return `${origin}${resolve('/')}?${params}`;
 	}
 }

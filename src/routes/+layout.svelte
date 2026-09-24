@@ -11,5 +11,5 @@
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
-<BrandBar isAdmin={data.isAdmin} />
+<BrandBar signedIn={data.signedIn} isAdmin={data.isAdmin} />
 {@render children()}

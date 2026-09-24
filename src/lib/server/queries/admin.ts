@@ -1,6 +1,9 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
+import { error } from '@sveltejs/kit';
+import { and, asc, desc, eq, exists, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
+import { canEditIncident, type Viewer } from '$lib/auth/roles';
 import { db } from '$lib/server/db';
-import { auditLog, counties, diseases, incidents } from '$lib/server/db/schema';
+import { counties, diseases, incidents, user } from '$lib/server/db/schema';
+import { recordAudit, type Tx } from '$lib/server/queries/audit';
 import type { Choice, ExistingRow, ImportItem } from '$lib/import/classify';
 import type { IncidentInput } from '$lib/validation/incident';
 
@@ -20,6 +23,11 @@ export type AdminIncident = {
 	comments: string | null;
 	source: string | null;
 	deletedAt: Date | null;
+	/** Internal user ID of whoever entered it; admin pages only, never public. */
+	createdBy: string | null;
+	reporterName: string | null;
+	reporterAffiliation: string | null;
+	imported: boolean;
 };
 
 const adminColumns = {
@@ -37,8 +45,22 @@ const adminColumns = {
 	strain: incidents.strain,
 	comments: incidents.comments,
 	source: incidents.source,
-	deletedAt: incidents.deletedAt
+	deletedAt: incidents.deletedAt,
+	createdBy: incidents.createdBy,
+	reporterName: user.name,
+	reporterAffiliation: user.affiliation,
+	imported: incidents.imported
 };
+
+/** Incidents with the joins `adminColumns` reads, on the connection or in a transaction. */
+function selectAdmin(conn: Tx | typeof db = db) {
+	return conn
+		.select(adminColumns)
+		.from(incidents)
+		.innerJoin(diseases, eq(diseases.id, incidents.diseaseId))
+		.innerJoin(counties, eq(counties.fips, incidents.countyFips))
+		.leftJoin(user, eq(user.id, incidents.createdBy));
+}
 
 /**
  * Admin listing. Unlike the public queries this can include retracted rows — an admin
@@ -48,18 +70,17 @@ export async function listIncidents(filters: {
 	diseaseId?: number;
 	year?: number;
 	includeDeleted?: boolean;
+	/** A user ID: only detections that user entered. */
+	reportedBy?: string;
 }): Promise<AdminIncident[]> {
 	const where = [
 		filters.diseaseId ? eq(incidents.diseaseId, filters.diseaseId) : undefined,
+		filters.reportedBy ? eq(incidents.createdBy, filters.reportedBy) : undefined,
 		filters.year ? sql`extract(year from ${incidents.observedOn}) = ${filters.year}` : undefined,
 		filters.includeDeleted ? undefined : isNull(incidents.deletedAt)
 	].filter(Boolean);
 
-	return db
-		.select(adminColumns)
-		.from(incidents)
-		.innerJoin(diseases, eq(diseases.id, incidents.diseaseId))
-		.innerJoin(counties, eq(counties.fips, incidents.countyFips))
+	return selectAdmin()
 		.where(where.length ? and(...where) : undefined)
 		.orderBy(desc(incidents.observedOn), desc(incidents.id));
 }
@@ -75,14 +96,27 @@ export async function listIncidentYears(): Promise<number[]> {
 	return rows.map((r) => Number(r.year));
 }
 
+/**
+ * Everyone who has entered at least one detection, retracted or not, for the admin
+ * list's "Reported by" filter. Deactivated users stay: their detections still exist.
+ */
+export async function listReporters(): Promise<{ id: string; name: string }[]> {
+	return db
+		.select({ id: user.id, name: user.name })
+		.from(user)
+		.where(
+			exists(
+				db
+					.select({ one: sql`1` })
+					.from(incidents)
+					.where(eq(incidents.createdBy, user.id))
+			)
+		)
+		.orderBy(asc(user.name));
+}
+
 export async function getIncident(id: number): Promise<AdminIncident | undefined> {
-	const rows = await db
-		.select(adminColumns)
-		.from(incidents)
-		.innerJoin(diseases, eq(diseases.id, incidents.diseaseId))
-		.innerJoin(counties, eq(counties.fips, incidents.countyFips))
-		.where(eq(incidents.id, id))
-		.limit(1);
+	const rows = await selectAdmin().where(eq(incidents.id, id)).limit(1);
 	return rows[0];
 }
 
@@ -140,10 +174,8 @@ export async function listFieldSuggestions(): Promise<{
 	return { crop, operationType, strain, source };
 }
 
-type Actor = { id: string };
-
-/** A transaction handle, so audit rows commit or roll back with the change they record. */
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+/** Who is making a change, and in what role. Every mutation checks it. */
+type Actor = Viewer;
 
 async function writeAudit(
 	tx: Tx,
@@ -153,25 +185,25 @@ async function writeAudit(
 	before: unknown,
 	after: unknown
 ) {
-	await tx.insert(auditLog).values({
-		actorId: actor.id,
-		tableName: 'incidents',
-		rowId: String(rowId),
-		action,
-		before: before ?? null,
-		after: after ?? null
-	});
+	await recordAudit(tx, { table: 'incidents', rowId, action, actorId: actor.id, before, after });
 }
 
 async function getIncidentTx(tx: Tx, id: number): Promise<AdminIncident | undefined> {
-	const rows = await tx
-		.select(adminColumns)
-		.from(incidents)
-		.innerJoin(diseases, eq(diseases.id, incidents.diseaseId))
-		.innerJoin(counties, eq(counties.fips, incidents.countyFips))
-		.where(eq(incidents.id, id))
-		.limit(1);
+	const rows = await selectAdmin(tx).where(eq(incidents.id, id)).limit(1);
 	return rows[0];
+}
+
+/**
+ * The row as it stands, provided the actor may change it. Checked inside the transaction
+ * that makes the change, so a hidden button is never the only thing in the way.
+ */
+async function editableIncident(tx: Tx, id: number, actor: Actor): Promise<AdminIncident> {
+	const row = await getIncidentTx(tx, id);
+	if (!row) error(404, 'Not found');
+	if (!canEditIncident(actor, row.createdBy)) {
+		error(403, 'Only the person who entered this detection, or an admin, can change it.');
+	}
+	return row;
 }
 
 const PUBLIC_ID_ATTEMPTS = 5;
@@ -193,13 +225,13 @@ function isPublicIdCollision(err: unknown): boolean {
  * Each attempt runs in a savepoint: in Postgres a failed statement aborts the whole
  * transaction, so a bare retry would fail on "current transaction is aborted".
  */
-async function insertIncident(tx: Tx, values: IncidentInput, actor: Actor) {
+async function insertIncident(tx: Tx, values: IncidentInput, actor: Actor, imported = false) {
 	for (let attempt = 1; ; attempt++) {
 		try {
 			return await tx.transaction(async (sp) => {
 				const [row] = await sp
 					.insert(incidents)
-					.values({ ...values, createdBy: actor.id })
+					.values({ ...values, createdBy: actor.id, imported })
 					.returning({ id: incidents.id, publicId: incidents.publicId });
 				return row;
 			});
@@ -220,7 +252,7 @@ export async function createIncident(input: IncidentInput, actor: Actor): Promis
 
 export async function updateIncident(id: number, input: IncidentInput, actor: Actor) {
 	await db.transaction(async (tx) => {
-		const before = await getIncidentTx(tx, id);
+		const before = await editableIncident(tx, id, actor);
 		await tx
 			.update(incidents)
 			.set({ ...input, updatedAt: new Date() })
@@ -236,7 +268,7 @@ export async function updateIncident(id: number, input: IncidentInput, actor: Ac
  */
 export async function retractIncident(id: number, actor: Actor) {
 	await db.transaction(async (tx) => {
-		const before = await getIncidentTx(tx, id);
+		const before = await editableIncident(tx, id, actor);
 		await tx.update(incidents).set({ deletedAt: new Date() }).where(eq(incidents.id, id));
 		await writeAudit(tx, 'retract', id, actor, before, null);
 	});
@@ -244,7 +276,7 @@ export async function retractIncident(id: number, actor: Actor) {
 
 export async function restoreIncident(id: number, actor: Actor) {
 	await db.transaction(async (tx) => {
-		const before = await getIncidentTx(tx, id);
+		const before = await editableIncident(tx, id, actor);
 		await tx.update(incidents).set({ deletedAt: null }).where(eq(incidents.id, id));
 		await writeAudit(tx, 'restore', id, actor, before, null);
 	});
@@ -319,6 +351,10 @@ export async function applyImport(
 	actor: Actor,
 	fileName: string
 ): Promise<ImportSummary> {
+	// Import back-loads history and can overwrite anyone's detection — admins only (D20).
+	// guardAdmin already refuses the route; this holds wherever it is called from.
+	if (actor.role !== 'admin') error(403, 'Only admins can import detections.');
+
 	const summary: ImportSummary = { added: 0, updated: 0, identical: 0, kept: 0 };
 
 	await db.transaction(async (tx) => {
@@ -340,7 +376,7 @@ export async function applyImport(
 			if (choice === 'keep_existing') {
 				summary.kept++;
 			} else if (choice === 'keep_both') {
-				const row = await insertIncident(tx, item.row.values, actor);
+				const row = await insertIncident(tx, item.row.values, actor, true);
 				await writeAudit(tx, 'import', row.id, actor, null, { ...item.row.values, provenance });
 				summary.added++;
 			} else {
@@ -373,17 +409,12 @@ export async function applyImport(
 export async function findSameDayDetections(
 	values: Pick<IncidentInput, 'diseaseId' | 'countyFips' | 'observedOn'>
 ): Promise<AdminIncident[]> {
-	return db
-		.select(adminColumns)
-		.from(incidents)
-		.innerJoin(diseases, eq(diseases.id, incidents.diseaseId))
-		.innerJoin(counties, eq(counties.fips, incidents.countyFips))
-		.where(
-			and(
-				eq(incidents.diseaseId, values.diseaseId),
-				eq(incidents.countyFips, values.countyFips),
-				eq(incidents.observedOn, values.observedOn),
-				isNull(incidents.deletedAt)
-			)
-		);
+	return selectAdmin().where(
+		and(
+			eq(incidents.diseaseId, values.diseaseId),
+			eq(incidents.countyFips, values.countyFips),
+			eq(incidents.observedOn, values.observedOn),
+			isNull(incidents.deletedAt)
+		)
+	);
 }

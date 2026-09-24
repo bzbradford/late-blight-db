@@ -24,3 +24,6 @@ vite.config.ts.timestamp-*
 # Playwright
 test-results
 tmp
+
+# Saved e2e sessions (e2e/auth.setup.ts)
+e2e/.auth

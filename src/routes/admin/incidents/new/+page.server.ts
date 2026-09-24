@@ -8,6 +8,7 @@ import {
 } from '$lib/server/queries/admin';
 import { listDiseases } from '$lib/server/queries/diseases';
 import { hasErrors, parseIncident, today } from '$lib/validation/incident';
+import { viewerOf } from '$lib/auth/roles';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
@@ -52,7 +53,7 @@ export const actions: Actions = {
 			}
 		}
 
-		await createIncident(values, { id: locals.user.id });
+		await createIncident(values, viewerOf(locals.user));
 		redirect(303, '/admin');
 	}
 };

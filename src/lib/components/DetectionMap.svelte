@@ -522,8 +522,9 @@
 			const county = countyAt(m, ev.point);
 			// Only counties with detections are selectable, so only they look clickable.
 			m.getCanvas().style.cursor = county && byFips.has(county.fips) ? 'pointer' : '';
-			// While labelling for a screenshot, a tooltip would only end up in the picture.
-			if (county && !labels) showTooltip(county, ev.lngLat);
+			// Shown even while labelling: labels are on by default, and "Save image" draws
+			// the map from data, so a tooltip never ends up in an exported picture.
+			if (county) showTooltip(county, ev.lngLat);
 			else hideTooltip();
 		});
 		m.on('mouseout', hideTooltip);
@@ -538,7 +539,7 @@
 				onSelect(null);
 			}
 			// Touch screens have no hover, so a tap is the only way to see the tooltip.
-			if (county && !labels) showTooltip(county, ev.lngLat);
+			if (county) showTooltip(county, ev.lngLat);
 		});
 
 		map = m;
@@ -617,11 +618,16 @@
 		// last request, and flies back to the old county over the top of `fitDefault`.
 		const target = untrack(() => aggregates.find((a) => a.fips === req.fips));
 		if (!target) return;
-		map.easeTo({
-			center: [target.lon, target.lat],
-			zoom: Math.max(map.getZoom(), 6),
-			duration: 700
-		});
+		const m = map;
+		// Untracked: easing can fire map events synchronously, and their handlers must not
+		// become dependencies of this effect.
+		untrack(() =>
+			m.easeTo({
+				center: [target.lon, target.lat],
+				zoom: Math.max(m.getZoom(), 6),
+				duration: 700
+			})
+		);
 	});
 
 	// Highlight the selected county without touching the fill layer.
@@ -710,8 +716,13 @@
 
 <style>
 	/* MapLibre's popup and controls are white by default; bring them onto the theme. */
+	/*
+	 * The county labels are an overlay after the map in the DOM, so without a z-index they
+	 * paint over the popup. The tooltip is transient and under the pointer; it goes on top.
+	 */
 	:global(.county-tooltip) {
 		pointer-events: none;
+		z-index: 10;
 	}
 	:global(.county-tooltip .maplibregl-popup-content) {
 		background: var(--popover);

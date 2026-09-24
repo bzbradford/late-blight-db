@@ -5,20 +5,20 @@
 	import { timeAgo } from '$lib/feed/time-ago';
 	import { formatShortDate } from '$lib/map/tooltip';
 	import type { Detection } from '$lib/server/queries/detections';
+	import { formatReporter } from '$lib/validation/account';
 
 	type Props = {
 		/** The detection shown, or null when closed. */
 		detection: Detection | null;
 		diseaseName: string;
-		isAdmin: boolean;
 		onClose: () => void;
-		/** Admins only: hand the detection to the editor. */
+		/** Only offered when `detection.canEdit`: hand the detection to the editor. */
 		onEdit: (detection: Detection) => void;
 		/** The editor is loading. */
 		editing?: boolean;
 	};
 
-	let { detection, diseaseName, isAdmin, onClose, onEdit, editing = false }: Props = $props();
+	let { detection, diseaseName, onClose, onEdit, editing = false }: Props = $props();
 
 	/** Only fields that hold something are listed — an empty row reads as missing data. */
 	let rows = $derived(
@@ -33,7 +33,13 @@
 						['Crop', detection.crop],
 						['Operation', detection.operationType],
 						['Strain', detection.strain],
-						['Source', detection.source]
+						['Source', detection.source],
+						// Who entered it. Back-loaded history says so, rather than crediting the
+						// importer with a report they didn't make.
+						[
+							detection.imported ? 'Imported by' : 'Reported by',
+							detection.reportedBy ? formatReporter(detection.reportedBy) : null
+						]
 					] satisfies [string, string | null][]
 				).filter((row): row is [string, string] => row[1] !== null)
 			: []
@@ -72,7 +78,7 @@
 				</div>
 			{/if}
 
-			{#if isAdmin}
+			{#if detection.canEdit}
 				<Dialog.Footer>
 					<Button type="button" disabled={editing} onclick={() => onEdit(detection)}>
 						<PencilIcon />

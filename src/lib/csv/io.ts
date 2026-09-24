@@ -7,9 +7,13 @@ import { CSV_COLUMNS, escapeCell, unescapeCell, type CsvColumn, type CsvRecord }
  */
 const BOM = '\uFEFF';
 
-export function toCsv(records: CsvRecord[]): string {
-	const data = records.map((r) => CSV_COLUMNS.map((c) => escapeCell(r[c])));
-	return BOM + Papa.unparse({ fields: [...CSV_COLUMNS], data }, { newline: '\r\n' });
+/** Writes `columns`, in order; the import template and the download each pass their own. */
+export function toCsv<C extends string>(
+	records: Record<C, string>[],
+	columns: readonly C[]
+): string {
+	const data = records.map((r) => columns.map((c) => escapeCell(r[c])));
+	return BOM + Papa.unparse({ fields: [...columns], data }, { newline: '\r\n' });
 }
 
 export type ParsedCsv =

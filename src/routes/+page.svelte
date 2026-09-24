@@ -24,7 +24,7 @@
 
 	// `data` is only the arrival view. From here on the view state owns disease, year,
 	// and selection, and `data` is never re-read — the page does not navigate again.
-	const view = untrack(() => new ViewState(data, data.selectedCounty, data.labelsSince));
+	const view = untrack(() => new ViewState(data, data.selectedCounty, data.labels));
 
 	let mode = $derived(symbologyMode(view.year));
 
@@ -156,7 +156,6 @@
 		{view}
 		labelTotal={labelSelection?.total ?? 0}
 		{downloadHref}
-		isAdmin={data.isAdmin}
 		onSaveImage={saveImage}
 	/>
 
@@ -242,12 +241,11 @@
 <DetectionDetail
 	detection={detail}
 	diseaseName={activeDiseaseName}
-	isAdmin={data.isAdmin}
 	editing={editor.loading}
 	onClose={() => (detail = null)}
 	onEdit={editDetection}
 />
 
-{#if data.isAdmin}
+{#if data.signedIn}
 	<IncidentDialog {editor} onChanged={() => view.refresh()} />
 {/if}
