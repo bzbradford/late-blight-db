@@ -674,9 +674,11 @@ every detection names who entered it, and accounts are managed in the app, not b
 
 **Tests**
 
-- [~] Unit: permission checks per role, path rules, profile/password validation. The
-  last-admin guard and token handling are database code, covered by e2e (single use,
-  unknown link, self-guard) — **expiry itself is not tested**.
+- [x] Unit: permission checks per role, path rules, profile/password validation. The
+      last-admin guard and token handling are database code, covered by e2e (single use,
+      unknown link, self-guard). Expiry: `queries/users.spec.ts` (added 2026-09-24) runs
+      against the dev database with a faked clock — invites work at 7 days less a second and
+      are refused (page and form) a second after; reset links likewise at 2 days.
 - [x] e2e: invite → accept → sign in as reporter; reporter can't reach `/admin/users` (page
       or action) or `/admin/import` (page or action); reporter edits own but not another's; reset
       link; change password; deactivated user can't sign in;
@@ -776,7 +778,9 @@ Notes from implementation:
       SvelteKit's 404 — the "`update-user` is closed" test passed for the wrong reason.
       `playwright.config.ts` now sets `ORIGIN` for the preview server, and that test
       asserts the 404 isn't a SvelteKit page.
-- [ ] Still untested: invite/reset link **expiry** (see the `[~]` under Tests).
+- [x] Invite/reset link **expiry** is now tested (see Tests). This is the first unit test
+      that needs the database: `pnpm test:unit` now requires `DATABASE_URL`, as e2e does.
+      It creates its own users and removes them, so it doesn't disturb the seed.
 
 ---
 
@@ -836,3 +840,5 @@ Append one line per working session: date, what moved, what's next.
   client); Better Auth now sees the real client address via `authHeaders`; fixed an open
   redirect in `redirectTo`; e2e now actually reaches `/api/auth/*`. 162 unit / 91 e2e
   green. Next: Phase 6 (set `ADDRESS_HEADER` there).
+- 2026-09-24 — Link expiry tested (fake clock against the dev database; checked it fails
+  with the expiry test removed). 165 unit green. Next: Phase 6.
