@@ -27,6 +27,12 @@ if (!DATABASE_URL) throw new Error('DATABASE_URL is not set');
 if (process.env.NODE_ENV === 'production') {
 	throw new Error('Refusing to run the development seed with NODE_ENV=production.');
 }
+// Also by where the app is served, which doesn't depend on a shell profile setting
+// NODE_ENV: any deployed ORIGIN has a real hostname.
+const origin = process.env.ORIGIN ? new URL(process.env.ORIGIN).hostname : 'localhost';
+if (origin !== 'localhost' && origin !== '127.0.0.1') {
+	throw new Error(`Refusing to run the development seed for ORIGIN ${process.env.ORIGIN}.`);
+}
 
 const now = new Date();
 const thisYear = now.getFullYear();

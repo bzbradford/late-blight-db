@@ -24,8 +24,7 @@ cd "$(dirname "$0")/.."
 PNPM_VERSION="$(node -p "require('./package.json').packageManager.split('@')[1]")"
 remote() { ssh -p "$SSH_PORT" "$SSH_HOST" "$@"; }
 
-# Shared by deploy and rollback: restart, then wait for /health. Rolls `current` back to
-# $PREVIOUS (if given) when the new release doesn't come up.
+# Shared by deploy and rollback: restart, then wait up to 30 s for /health.
 REMOTE_RESTART='
 restart_and_check() {
 	systemctl --user restart blightmap
@@ -86,7 +85,9 @@ echo "$REVISION" > REVISION
 ln -s ../../shared/.env .env
 
 echo "Installing packages (pnpm $PNPM_VERSION)"
-CI=true npx --yes "pnpm@$PNPM_VERSION" install --frozen-lockfile --reporter=append-only
+# The deploy user's .bashrc exports NODE_ENV=production, which would skip the dev
+# packages that migrate, seed, and create-admin need.
+CI=true NODE_ENV=development npx --yes "pnpm@$PNPM_VERSION" install --frozen-lockfile --reporter=append-only
 
 echo "Migrating and seeding reference data"
 set -a; . ./.env; set +a
