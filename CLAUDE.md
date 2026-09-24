@@ -157,7 +157,10 @@ APIs. It runs behind whatever reverse proxy the extension server provides.
   and `/update-user` and `/change-password` are in `disabledPaths`: otherwise a reporter
   could make themselves an admin through Better Auth's own endpoint, or change their
   profile without an audit row. After changing `additionalFields`, run `pnpm auth:schema`
-  and `pnpm format`.
+  and `pnpm format`. `auth.api` calls that start a session pass `authHeaders(event)`, not
+  `request.headers`: it carries the client address Better Auth rate-limits and records by.
+  Server-side `auth.api` calls bypass Better Auth's limiter, so `/login` has its own
+  (`$lib/server/rate-limit.ts`).
 - `src/hooks.server.ts` (`guardAdmin`) — the single guard for the whole admin area: pages,
   form actions, and `+server.ts` endpoints. Put new admin routes under `/admin` so they
   inherit it; add admin-only prefixes to `ADMIN_ONLY_PATHS`. (`src/routes/admin/+layout.server.ts`

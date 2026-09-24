@@ -20,11 +20,13 @@ Its durable lessons have been folded into `CLAUDE.md`; the summary below is enou
 | 3     | Auth (D), public data layer (E), map (F)               | ✅ `bcdc73c`, `91ea71e`                    |
 | 4     | Feed + map/feed linking (G), admin CRUD (H)            | ✅ `c0ea24c`, `be51bff`                    |
 | **5** | **Polish — see below**                                 | 🟡 **All tracks ✅; one manual pass left** |
-| 5½    | Accounts: roles, invitations, attribution (5H)         | ✅ Done; two rate-limit follow-ups         |
+| 5½    | Accounts: roles, invitations, attribution (5H)         | ✅ Done, follow-ups included               |
 | 6     | Deploy (systemd, reverse proxy, backups, health check) | ⏸ Blocked on server details                |
 
 Phase 6 still needs from the user: SSH/host details for the extension server, the production
-Postgres arrangement, and a `pg_dump` backup destination.
+Postgres arrangement, and a `pg_dump` backup destination. The deploy must set
+`ADDRESS_HEADER` (and `XFF_DEPTH` if it's `X-Forwarded-For`) for the reverse proxy — see
+`.env.example`; without it every client shares one sign-in rate-limit bucket.
 
 ---
 
@@ -580,7 +582,7 @@ Notes:
       `pnpm test:e2e` (73, twice in a row) green.
 - [x] Screenshots in light and dark, desktop and mobile, basemap on and unset (no console
       errors with it unset).
-- [ ] Full admin loop: sign in from the new link → import a CSV (with one conflict) → detections
+- [x] Full admin loop: sign in from the new link → import a CSV (with one conflict) → detections
       appear → turn on labels, drag one, share the link, open it in a fresh browser → download
       matches → retract one → it leaves map, labels, and export. _Covered piecewise by
       e2e (import with conflict choices, labels + share round trip, retract leaves the
@@ -747,17 +749,34 @@ Notes from implementation:
       was still sliding open; the unsaved-changes test clicked outside a modal before it was
       ready. 88/88 e2e three runs in a row.
 
-**Follow-ups found during 5H (not done):**
+**Follow-ups found during 5H (done 2026-09-24):**
 
-- [ ] **The sign-in form is not rate-limited.** `/login` calls `auth.api.signInEmail`
+- [x] **The sign-in form is not rate-limited.** `/login` calls `auth.api.signInEmail`
       server-side, and Better Auth only rate-limits HTTP requests to its own handler —
       probed: 7 wrong passwords in a row via `/login` were all answered, none refused. The
       "Too many attempts" branch in the login action is unreachable. Needs a limiter in
       the action itself (keyed on `event.getClientAddress()` and the address), or the form
-      posting to the handler.
-- [ ] **Better Auth's own limiter shares one bucket across all clients** behind adapter-node:
+      posting to the handler. **Fixed:** `$lib/server/rate-limit.ts`, in memory (one
+      process). Only failures count: 5 per address per client in 5 minutes, 20 per client
+      across addresses in 15. Nothing keyed on the address alone, so nobody can lock a
+      specialist out by typing their email. A blocked attempt never reaches the hasher.
+- [x] **Better Auth's own limiter shares one bucket across all clients** behind adapter-node:
       it can't find a client IP ("falling back to a single shared per-path bucket"). Set
       `advanced.ipAddress.ipAddressHeaders` to the reverse proxy's header in Phase 6.
+      **Fixed without waiting for Phase 6:** `authHeaders(event)` in `auth.ts` stamps
+      SvelteKit's `getClientAddress()` into a private header, the only one Better Auth
+      reads. `hooks.server.ts` calls `auth.handler` itself (in place of `svelteKitHandler`)
+      to add it, and the `auth.api` calls that start sessions pass it too. So the one proxy
+      setting is adapter-node's `ADDRESS_HEADER` / `XFF_DEPTH`; a client-sent copy of the
+      header is overwritten.
+- [x] Found in passing: **`/login?redirectTo=//other.site` was an open redirect** (the
+      check was `startsWith('/')`, and `load` didn't check at all). Now only same-site paths.
+- [x] Found in passing: **e2e never reached Better Auth's HTTP handler.** The preview
+      server ran with `.env`'s `ORIGIN` (port 5173), so `/api/auth/*` fell through to
+      SvelteKit's 404 — the "`update-user` is closed" test passed for the wrong reason.
+      `playwright.config.ts` now sets `ORIGIN` for the preview server, and that test
+      asserts the 404 isn't a SvelteKit page.
+- [ ] Still untested: invite/reset link **expiry** (see the `[~]` under Tests).
 
 ---
 
@@ -813,3 +832,7 @@ Append one line per working session: date, what moved, what's next.
 - 2026-09-24 — D22 labels on by default (14 days); map-tools Import link removed; "Account"
   for reporters; "Back to map". Fixed the labels + share-link effect loop and three e2e
   races. Next: sign-in rate limiting, then Phase 6.
+- 2026-09-24 — 5H follow-ups done: `/login` failure limiter (per address+client, per
+  client); Better Auth now sees the real client address via `authHeaders`; fixed an open
+  redirect in `redirectTo`; e2e now actually reaches `/api/auth/*`. 162 unit / 91 e2e
+  green. Next: Phase 6 (set `ADDRESS_HEADER` there).

@@ -50,6 +50,8 @@ test.describe('reporter permissions', () => {
 			data: { role: 'admin', name: 'Sneaky' }
 		});
 		expect(promote.status()).toBe(404);
+		// Refused by Better Auth itself, not SvelteKit's 404 page for a path it never reached.
+		expect(promote.headers()['x-sveltekit-page']).toBeUndefined();
 		await page.goto('/admin');
 		await expect(page.locator('header')).toContainText('E2E Reporter (Reporter)');
 	});

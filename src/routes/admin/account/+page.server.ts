@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import { APIError } from 'better-auth/api';
-import { auth } from '$lib/server/auth';
+import { auth, authHeaders } from '$lib/server/auth';
 import { recordPasswordChange, updateProfile } from '$lib/server/queries/users';
 import { checkNewPassword, parseProfile } from '$lib/validation/account';
 import type { Actions, PageServerLoad } from './$types';
@@ -32,7 +32,8 @@ export const actions: Actions = {
 		return { action: 'profile' as const, saved: true };
 	},
 
-	password: async ({ request, locals }) => {
+	password: async (event) => {
+		const { request, locals } = event;
 		const data = await request.formData();
 		const currentPassword = String(data.get('currentPassword') ?? '');
 		const newPassword = String(data.get('newPassword') ?? '');
@@ -43,7 +44,7 @@ export const actions: Actions = {
 			// Signs out every other session; this one continues with a fresh cookie.
 			await auth.api.changePassword({
 				body: { currentPassword, newPassword, revokeOtherSessions: true },
-				headers: request.headers
+				headers: authHeaders(event)
 			});
 		} catch (error) {
 			if (error instanceof APIError) {

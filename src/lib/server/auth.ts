@@ -3,11 +3,31 @@ import { betterAuth } from 'better-auth/minimal';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
+import type { RequestEvent } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { user } from '$lib/server/db/auth.schema';
 import { MIN_PASSWORD_LENGTH } from '$lib/validation/account';
+
+/**
+ * Better Auth reads the client address from this header, which only `authHeaders` sets.
+ * Without it Better Auth finds no address it trusts (behind a proxy there is no single
+ * `x-forwarded-for` value) and rate-limits every client out of one shared bucket.
+ */
+const CLIENT_IP_HEADER = 'x-lateblight-client-ip';
+
+/**
+ * The request's headers for a Better Auth call, carrying the client address SvelteKit
+ * resolved (from `ADDRESS_HEADER` / `XFF_DEPTH` behind a proxy). Any copy of the
+ * header the client sent is replaced. Use this, not `request.headers`, for `auth.api`
+ * calls that start a session, so the session records the real address.
+ */
+export function authHeaders(event: Pick<RequestEvent, 'request' | 'getClientAddress'>) {
+	const headers = new Headers(event.request.headers);
+	headers.set(CLIENT_IP_HEADER, event.getClientAddress());
+	return headers;
+}
 
 export const auth = betterAuth({
 	baseURL: env.ORIGIN,
@@ -97,7 +117,9 @@ export const auth = betterAuth({
 
 	advanced: {
 		// Plain HTTP in local development; the deployment sits behind TLS.
-		useSecureCookies: !dev
+		useSecureCookies: !dev,
+		// Set by `authHeaders` from SvelteKit's resolved address, never taken from the client.
+		ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] }
 	},
 
 	plugins: [

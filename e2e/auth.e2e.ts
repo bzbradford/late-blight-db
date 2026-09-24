@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 const EMAIL = 'e2e-admin@example.com';
 const PASSWORD = 'e2e-test-password-123';
+const ORIGIN = 'http://localhost:4173';
 
 test.describe('admin authentication', () => {
 	test('an unauthenticated visit to /admin redirects to sign in', async ({ page }) => {
@@ -69,5 +70,46 @@ test.describe('admin authentication', () => {
 		await page.getByLabel('Password').fill(PASSWORD);
 		await page.getByRole('button', { name: /Sign in/ }).click();
 		await expect(page).toHaveURL(/\/admin$/);
+	});
+
+	test('redirectTo cannot send the visitor to another site', async ({ page }) => {
+		await page.goto('/login?redirectTo=' + encodeURIComponent('//example.com/admin'));
+		await page.getByLabel('Email').fill(EMAIL);
+		await page.getByLabel('Password').fill(PASSWORD);
+		await page.getByRole('button', { name: /Sign in/ }).click();
+		await expect(page).toHaveURL(/^http:\/\/localhost:\d+\/admin$/);
+	});
+});
+
+test.describe('sign-in rate limits', () => {
+	test('the form refuses an address after 5 wrong passwords', async ({ page }) => {
+		// An address with no account, so no other test's sign-in is locked out.
+		const email = `limit-${Date.now()}@example.com`;
+		const attempt = async () => {
+			await page.goto('/login');
+			await page.getByLabel('Email').fill(email);
+			await page.getByLabel('Password').fill('definitely-not-the-password');
+			await page.getByRole('button', { name: /Sign in/ }).click();
+			return page.getByRole('alert');
+		};
+		for (let i = 0; i < 5; i++) {
+			await expect(await attempt()).toHaveText('Incorrect email address or password.');
+		}
+		await expect(await attempt()).toHaveText(/^Too many attempts\. Try again in 5 minutes\.$/);
+	});
+
+	test('a client cannot pick its own address for Better Auth’s limiter', async ({ request }) => {
+		// Better Auth allows 5 sign-ins a minute per client. The hook replaces the address
+		// header, so claiming a new address on each request doesn't earn more tries.
+		const statuses: number[] = [];
+		for (let i = 0; i < 6; i++) {
+			const response = await request.post('/api/auth/sign-in/email', {
+				headers: { origin: ORIGIN, 'x-lateblight-client-ip': `203.0.113.${i + 1}` },
+				data: { email: 'nobody-at-all@example.com', password: 'definitely-not-the-password' }
+			});
+			statuses.push(response.status());
+		}
+		expect(statuses.slice(0, 5)).not.toContain(429);
+		expect(statuses[5]).toBe(429);
 	});
 });

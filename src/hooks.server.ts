@@ -1,8 +1,8 @@
 import { error, redirect, type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { building } from '$app/environment';
-import { auth } from '$lib/server/auth';
-import { svelteKitHandler } from 'better-auth/svelte-kit';
+import { isAuthPath } from 'better-auth/svelte-kit';
+import { auth, authHeaders } from '$lib/server/auth';
 import { isAdminOnlyPath, isRole } from '$lib/auth/roles';
 
 const handleBetterAuth: Handle = async ({ event, resolve }) => {
@@ -15,7 +15,10 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 		event.locals.user = { ...session.user, role: session.user.role };
 	}
 
-	return svelteKitHandler({ event, resolve, auth, building });
+	if (building || !isAuthPath(event.url.toString(), auth.options)) return resolve(event);
+	// Better Auth's own endpoints. (This replaces `svelteKitHandler`, only to pass the
+	// client address through, so its rate limiter tells clients apart.)
+	return auth.handler(new Request(event.request, { headers: authHeaders(event) }));
 };
 
 /**

@@ -1,5 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { auth } from '$lib/server/auth';
+import { auth, authHeaders } from '$lib/server/auth';
 import { acceptInvite, findLink, resetPassword } from '$lib/server/queries/users';
 import { checkNewPassword, parseProfile } from '$lib/validation/account';
 import type { Actions, PageServerLoad } from './$types';
@@ -20,7 +20,8 @@ async function signIn(email: string, password: string, headers: Headers) {
 }
 
 export const actions: Actions = {
-	default: async ({ request, params }) => {
+	default: async (event) => {
+		const { request, params } = event;
 		const link = await findLink(params.token);
 		if (!link) return fail(410, { expired: true as const });
 
@@ -32,7 +33,7 @@ export const actions: Actions = {
 			if (passwordError) return fail(400, { passwordError });
 			const email = await resetPassword(params.token, password);
 			if (!email) return fail(410, { expired: true as const });
-			await signIn(email, password, request.headers);
+			await signIn(email, password, authHeaders(event));
 			redirect(303, '/admin');
 		}
 
@@ -42,7 +43,7 @@ export const actions: Actions = {
 		}
 		const email = await acceptInvite(params.token, values, password);
 		if (!email) return fail(410, { expired: true as const });
-		await signIn(email, password, request.headers);
+		await signIn(email, password, authHeaders(event));
 		redirect(303, '/admin');
 	}
 };
