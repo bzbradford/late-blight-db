@@ -19,7 +19,14 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from '../src/lib/server/db/schema';
-import { diseases, incidents, invitations, user } from '../src/lib/server/db/schema';
+import {
+	diseases,
+	incidents,
+	invitations,
+	rateLimit,
+	signInFailures,
+	user
+} from '../src/lib/server/db/schema';
 import { today } from '../src/lib/validation/incident';
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -229,6 +236,11 @@ try {
 	// users, but these are throwaway fixtures in a development database.
 	await db.execute(sql`delete from ${invitations}`);
 	await db.execute(sql`delete from ${user} where ${user.email} like 'invitee-%@example.com'`);
+
+	// Sign-in limits live in the database, so the e2e suite's deliberate wrong passwords
+	// would otherwise still count against the next run.
+	await db.execute(sql`delete from ${signInFailures}`);
+	await db.execute(sql`delete from ${rateLimit}`);
 
 	const adminId = await provision(DEV_ADMIN);
 	const reporterId = await provision(DEV_REPORTER);

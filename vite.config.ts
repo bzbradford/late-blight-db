@@ -1,7 +1,8 @@
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
-import adapter from '@sveltejs/adapter-node';
+import adapterNode from '@sveltejs/adapter-node';
+import adapterVercel from '@sveltejs/adapter-vercel';
 import { sveltekit } from '@sveltejs/kit/vite';
 
 export default defineConfig({
@@ -17,7 +18,11 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter(),
+			// Vercel sets VERCEL=1 in its builds. Everywhere else (staging, production, e2e)
+			// it's one adapter-node process. See deploy/VERCEL.md.
+			// Functions run in iad1 (Washington, D.C.), next to a Supabase project in
+			// us-east-1: every page makes several queries, and each would cross the country.
+			adapter: process.env.VERCEL ? adapterVercel({ regions: ['iad1'] }) : adapterNode(),
 			typescript: {
 				config: (config) => {
 					config.include.push('../drizzle.config.ts');

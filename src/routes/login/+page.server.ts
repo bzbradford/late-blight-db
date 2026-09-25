@@ -33,9 +33,9 @@ export const actions: Actions = {
 
 		// Better Auth's limiter only sees requests to its own HTTP handler, and this is a
 		// server-side call, so the form is limited here. Behind a proxy the client address
-		// comes from ADDRESS_HEADER / XFF_DEPTH (adapter-node).
+		// comes from ADDRESS_HEADER / XFF_DEPTH (adapter-node); on Vercel, from the platform.
 		const client = event.getClientAddress();
-		const wait = signInRetryAfter(client, email);
+		const wait = await signInRetryAfter(client, email);
 		if (wait > 0) {
 			const minutes = Math.ceil(wait / 60_000);
 			return fail(429, {
@@ -49,14 +49,14 @@ export const actions: Actions = {
 			await auth.api.signInEmail({ body: { email, password }, headers: authHeaders(event) });
 		} catch (error) {
 			if (error instanceof APIError) {
-				recordSignInFailure(client, email);
+				await recordSignInFailure(client, email);
 				// Deliberately uniform: distinguishing "no such account" from "wrong
 				// password" would confirm which addresses have admin accounts.
 				return fail(401, { email, error: 'Incorrect email address or password.' });
 			}
 			throw error;
 		}
-		recordSignInSuccess(client, email);
+		await recordSignInSuccess(client, email);
 
 		redirect(303, afterSignIn(event.url));
 	}

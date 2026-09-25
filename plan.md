@@ -21,7 +21,7 @@ Its durable lessons have been folded into `CLAUDE.md`; the summary below is enou
 | 4     | Feed + map/feed linking (G), admin CRUD (H)            | ✅ `c0ea24c`, `be51bff`                     |
 | **5** | **Polish — see below**                                 | 🟡 **All tracks ✅; one manual pass left**  |
 | 5½    | Accounts: roles, invitations, attribution (5H)         | ✅ Done, follow-ups included                |
-| 6     | Deploy (systemd, reverse proxy, backups, health check) | 🟡 Staging scripted; one-time setup pending |
+| 6     | Deploy (systemd, reverse proxy, backups, health check) | 🟡 Staging + Vercel scripted; setup pending |
 | 7     | Public detections table + shared nav (Track 7A)        | ✅ Done (uncommitted as of 2026-09-25)      |
 
 Phase 6: staging first (below), on the AgWeather dev server, for stakeholder feedback.
@@ -813,6 +813,29 @@ Notes from implementation:
 - [ ] Data for stakeholders: real detections by CSV import, or synthetic (open).
 - Later, for production: backups (`pg_dump` + destination), uptime monitor on `/health`.
 
+### Vercel + Supabase (2026-09-25)
+
+An easier path to a stakeholder site while the AgWeather DNS record is pending. Runbook:
+`deploy/VERCEL.md`. Branch `vercel-supabase`.
+
+- **D28. One codebase, two adapters.** `adapter-vercel` when `VERCEL=1` (Vercel's builds),
+  `adapter-node` everywhere else, so the server deploy and e2e are unchanged. Functions in
+  `iad1`, next to Supabase `us-east-1`.
+- **D29. Sign-in limits in Postgres, on every host.** Supersedes D24's "one process keeps the
+  in-memory limiter exact": `/login`'s `FailureLimiter` is an upsert on `sign_in_failures`,
+  and Better Auth uses `rateLimit.storage: 'database'` (`rate_limit`). Migration 0008.
+- **D30. Production builds migrate and seed** (`deploy/vercel-build.sh`) through the session
+  pooler (`MIGRATION_DATABASE_URL`); the app uses the transaction pooler with
+  `prepare: false`. Preview builds don't migrate, because they share the database.
+- [x] Adapter switch, pooler-safe client, database-backed limiters (tests against the dev
+      database, including concurrent failures), `seed:dev` clears the limiter tables.
+- [x] `vercel.json`, `deploy/vercel-build.sh`, `deploy/VERCEL.md`, `deploy/env.vercel.example`.
+- [ ] One-time setup (user): Supabase project in `us-east-1` with the Data API off; Vercel
+      project with the environment variables; first deploy; `create-admin` from a local
+      `.env.vercel`; smoke test.
+- [ ] Before real accounts: Supabase free-tier pausing, Vercel Hobby terms, university
+      policy on hosting account data, backups.
+
 ---
 
 ## Phase 7 — Detections table
@@ -943,3 +966,7 @@ Append one line per working session: date, what moved, what's next.
 - 2026-09-25 — Committed 7A (`ee67786`). Added the table search box (client-side, instant).
 - 2026-09-25 — Table: State column and filter (CSV follows), full county names
   (`counties.full_name`, migration 0007). Detail dialog headed by disease, with Location row.
+- 2026-09-25 — Vercel + Supabase option (D28–D30): adapter chosen by `VERCEL`, pooler-safe
+  client, sign-in limits moved to Postgres (migration 0008), production build migrates and
+  seeds, runbook `deploy/VERCEL.md`. `VERCEL=1 pnpm build` checked locally; check/lint clean,
+  179 unit / 98 e2e green. Next: user creates the Supabase and Vercel projects.

@@ -8,6 +8,7 @@ import {
 	jsonb,
 	numeric,
 	pgTable,
+	primaryKey,
 	serial,
 	text,
 	timestamp,
@@ -162,6 +163,26 @@ export const invitations = pgTable(
 		revokedAt: timestamp('revoked_at')
 	},
 	(t) => [index('invitations_email_idx').on(t.email)]
+);
+
+/**
+ * Failed sign-ins on the `/login` form, per limiter and key, in fixed windows
+ * (`$lib/server/rate-limit.ts`). In the database rather than memory so the limit holds
+ * across processes: on Vercel every serverless instance would otherwise count alone.
+ * Rows are disposable; expired ones are pruned as new failures arrive.
+ */
+export const signInFailures = pgTable(
+	'sign_in_failures',
+	{
+		limiter: text('limiter').notNull(),
+		key: text('key').notNull(),
+		count: integer('count').notNull(),
+		resetAt: timestamp('reset_at', { withTimezone: true }).notNull()
+	},
+	(t) => [
+		primaryKey({ columns: [t.limiter, t.key] }),
+		index('sign_in_failures_reset_at_idx').on(t.resetAt)
+	]
 );
 
 export const diseasesRelations = relations(diseases, ({ many }) => ({

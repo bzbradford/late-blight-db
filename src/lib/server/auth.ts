@@ -106,6 +106,9 @@ export const auth = betterAuth({
 
 	rateLimit: {
 		enabled: true,
+		// In Postgres, not memory: on Vercel each serverless instance would keep its own
+		// counts and forget them when it stops, so the limit would barely hold.
+		storage: 'database',
 		window: 60,
 		max: 100,
 		customRules: {

@@ -1,45 +1,63 @@
+import { and, eq, lte, sql } from 'drizzle-orm';
+import { db } from '$lib/server/db';
+import { signInFailures } from '$lib/server/db/schema';
+
 /**
- * Counts failures per key in fixed windows, in memory.
+ * Counts failures per key in fixed windows, in Postgres (`sign_in_failures`).
  *
- * The app runs as one adapter-node process, so a module-level Map is the whole store:
- * nothing to configure, and a restart forgetting the counts is harmless. Only
- * failures count, so someone who types their password right is never slowed down.
+ * Memory would do for one adapter-node process, but not on a serverless host, where each
+ * instance would keep its own counts and lose them when it stops. A failure is one
+ * upsert, and only failures count, so someone who types their password right is never
+ * slowed down.
  */
 export class FailureLimiter {
+	readonly #name: string;
 	readonly #max: number;
 	readonly #windowMs: number;
-	readonly #entries = new Map<string, { count: number; resetAt: number }>();
 
-	constructor(max: number, windowMs: number) {
+	/** `name` keeps this limiter's rows apart from another's in the shared table. */
+	constructor(name: string, max: number, windowMs: number) {
+		this.#name = name;
 		this.#max = max;
 		this.#windowMs = windowMs;
 	}
 
 	/** Milliseconds until `key` may try again, or 0 if it may try now. */
-	retryAfter(key: string, now = Date.now()): number {
-		const entry = this.#entries.get(key);
-		if (!entry || now >= entry.resetAt) return 0;
-		return entry.count >= this.#max ? entry.resetAt - now : 0;
+	async retryAfter(key: string, now = Date.now()): Promise<number> {
+		const [entry] = await db
+			.select({ count: signInFailures.count, resetAt: signInFailures.resetAt })
+			.from(signInFailures)
+			.where(and(eq(signInFailures.limiter, this.#name), eq(signInFailures.key, key)));
+		if (!entry || now >= entry.resetAt.getTime()) return 0;
+		return entry.count >= this.#max ? entry.resetAt.getTime() - now : 0;
 	}
 
-	recordFailure(key: string, now = Date.now()): void {
-		const entry = this.#entries.get(key);
-		if (!entry || now >= entry.resetAt) {
-			this.#prune(now);
-			this.#entries.set(key, { count: 1, resetAt: now + this.#windowMs });
-		} else {
-			entry.count++;
-		}
+	/** One statement, so concurrent failures from the same key each count. */
+	async recordFailure(key: string, now = Date.now()): Promise<void> {
+		const at = new Date(now);
+		const resetAt = new Date(now + this.#windowMs);
+		// ISO strings: drizzle leaves a Date inside `sql` unserialized, and postgres-js rejects it.
+		const expired = sql`${signInFailures.resetAt} <= ${at.toISOString()}`;
+		await db
+			.insert(signInFailures)
+			.values({ limiter: this.#name, key, count: 1, resetAt })
+			.onConflictDoUpdate({
+				target: [signInFailures.limiter, signInFailures.key],
+				set: {
+					count: sql`case when ${expired} then 1 else ${signInFailures.count} + 1 end`,
+					resetAt: sql`case when ${expired} then ${resetAt.toISOString()}::timestamptz else ${signInFailures.resetAt} end`
+				}
+			});
+		// Drops expired windows so a stream of distinct keys can't grow the table forever.
+		await db
+			.delete(signInFailures)
+			.where(and(eq(signInFailures.limiter, this.#name), lte(signInFailures.resetAt, at)));
 	}
 
-	reset(key: string): void {
-		this.#entries.delete(key);
-	}
-
-	/** Drops expired windows so a stream of distinct keys can't grow the map forever. */
-	#prune(now: number) {
-		if (this.#entries.size < 1000) return;
-		for (const [key, entry] of this.#entries) if (now >= entry.resetAt) this.#entries.delete(key);
+	async reset(key: string): Promise<void> {
+		await db
+			.delete(signInFailures)
+			.where(and(eq(signInFailures.limiter, this.#name), eq(signInFailures.key, key)));
 	}
 }
 
@@ -51,25 +69,34 @@ const MINUTE = 60_000;
  * common password over the handful of known accounts. Nothing is keyed on the address
  * alone: that would let anyone lock a specialist out by typing their email.
  */
-const perAccount = new FailureLimiter(5, 5 * MINUTE);
-const perClient = new FailureLimiter(20, 15 * MINUTE);
+const perAccount = new FailureLimiter('account', 5, 5 * MINUTE);
+const perClient = new FailureLimiter('client', 20, 15 * MINUTE);
 
 const accountKey = (client: string, email: string) => `${client}|${email}`;
 
 /** Milliseconds until this client may try this address again, or 0. */
-export function signInRetryAfter(client: string, email: string, now = Date.now()): number {
-	return Math.max(
+export async function signInRetryAfter(
+	client: string,
+	email: string,
+	now = Date.now()
+): Promise<number> {
+	const [account, all] = await Promise.all([
 		perAccount.retryAfter(accountKey(client, email), now),
 		perClient.retryAfter(client, now)
-	);
+	]);
+	return Math.max(account, all);
 }
 
-export function recordSignInFailure(client: string, email: string, now = Date.now()): void {
-	perAccount.recordFailure(accountKey(client, email), now);
-	perClient.recordFailure(client, now);
+export async function recordSignInFailure(
+	client: string,
+	email: string,
+	now = Date.now()
+): Promise<void> {
+	await perAccount.recordFailure(accountKey(client, email), now);
+	await perClient.recordFailure(client, now);
 }
 
 /** A successful sign-in clears that address's count (not the client's). */
-export function recordSignInSuccess(client: string, email: string): void {
-	perAccount.reset(accountKey(client, email));
+export async function recordSignInSuccess(client: string, email: string): Promise<void> {
+	await perAccount.reset(accountKey(client, email));
 }

@@ -144,8 +144,12 @@ per-county aggregate (`first_detection`, `last_detection`, `count`).
 `PUBLIC_BASEMAP_STYLE_URL`. The app must render correctly with that variable unset — counties
 and state outlines carry all the information.
 
-**Portable deploy.** `adapter-node`, all config via environment variables, no platform-specific
-APIs. It runs behind whatever reverse proxy the extension server provides.
+**Portable deploy.** All config via environment variables, no platform-specific APIs. The
+build is `adapter-node` (behind whatever reverse proxy the extension server provides) unless
+Vercel's build sets `VERCEL=1`, which picks `adapter-vercel` (`deploy/VERCEL.md`, with
+Supabase Postgres). So nothing may assume one long-lived process: state shared between
+requests, such as the sign-in limits, lives in Postgres, and the database client uses
+`prepare: false` so it works through a transaction-mode pooler.
 
 ## Conventions
 
@@ -167,7 +171,8 @@ APIs. It runs behind whatever reverse proxy the extension server provides.
   and `pnpm format`. `auth.api` calls that start a session pass `authHeaders(event)`, not
   `request.headers`: it carries the client address Better Auth rate-limits and records by.
   Server-side `auth.api` calls bypass Better Auth's limiter, so `/login` has its own
-  (`$lib/server/rate-limit.ts`).
+  (`$lib/server/rate-limit.ts`). Both keep their counts in Postgres (`rate_limit`,
+  `sign_in_failures`); `seed:dev` clears them so e2e runs don't inherit lockouts.
 - `src/hooks.server.ts` (`guardAdmin`) — the single guard for the whole admin area: pages,
   form actions, and `+server.ts` endpoints. Put new admin routes under `/admin` so they
   inherit it; add admin-only prefixes to `ADMIN_ONLY_PATHS`. (`src/routes/admin/+layout.server.ts`
