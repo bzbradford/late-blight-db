@@ -1,6 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import {
 	countyExists,
+	deleteIncident,
 	getIncident,
 	listCounties,
 	listFieldSuggestions,
@@ -10,7 +11,7 @@ import {
 } from '$lib/server/queries/admin';
 import { listDiseases } from '$lib/server/queries/diseases';
 import { hasErrors, parseIncident, today } from '$lib/validation/incident';
-import { canEditIncident, viewerOf } from '$lib/auth/roles';
+import { canDeleteIncident, canEditIncident, viewerOf } from '$lib/auth/roles';
 import type { Actions, PageServerLoad } from './$types';
 
 function parseId(param: string): number {
@@ -40,7 +41,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		listCounties(),
 		listFieldSuggestions()
 	]);
-	return { incident, diseases, counties, suggestions, maxDate: today() };
+	const canDelete = canDeleteIncident(locals.user ? viewerOf(locals.user) : null);
+	return { incident, diseases, counties, suggestions, maxDate: today(), canDelete };
 };
 
 export const actions: Actions = {
@@ -73,5 +75,12 @@ export const actions: Actions = {
 		const { id } = await editable(params.id, locals.user);
 		await restoreIncident(id, viewerOf(locals.user));
 		redirect(303, '/admin');
+	},
+
+	delete: async ({ params, locals }) => {
+		if (!locals.user) return fail(401, { errors: {}, values: {} });
+		const { id } = await editable(params.id, locals.user);
+		await deleteIncident(id, viewerOf(locals.user));
+		redirect(303, '/admin?includeDeleted=1');
 	}
 };

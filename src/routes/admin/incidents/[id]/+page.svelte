@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import DeleteIncidentDialog from '$lib/components/admin/DeleteIncidentDialog.svelte';
 	import IncidentForm from '$lib/components/admin/IncidentForm.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import type { PageProps } from './$types';
@@ -27,9 +28,14 @@
 			<p class="mt-1 text-sm text-muted-foreground">
 				It does not appear on the public map. Its history is kept either way.
 			</p>
-			<form method="POST" action="?/restore" use:enhance class="mt-3">
-				<Button type="submit" variant="secondary">Restore</Button>
-			</form>
+			<div class="mt-3 flex flex-wrap gap-3">
+				<form method="POST" action="?/restore" use:enhance>
+					<Button type="submit" variant="secondary">Restore</Button>
+				</form>
+				{#if data.canDelete}
+					<DeleteIncidentDialog action="?/delete" publicId={data.incident.publicId} />
+				{/if}
+			</div>
 		</div>
 	{/if}
 

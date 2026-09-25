@@ -220,4 +220,7 @@ APIs. It runs behind whatever reverse proxy the extension server provides.
 - Do not mutate incidents, users, or invitations without writing an `audit_log` row.
 - Do not rely on client-side validation. `max` on a date input is a hint; the server action
   re-validates everything, including that the county actually exists.
-- Do not hard-delete detections — they are soft-deleted so retractions stay auditable.
+- Do not hard-delete detections except through `deleteIncident`. Retraction (a soft delete)
+  is the normal way to withdraw one. Permanent deletion is only for a detection entered in
+  error: admins only, only once it is retracted, and behind a confirmation. Its `audit_log`
+  row keeps the full record.

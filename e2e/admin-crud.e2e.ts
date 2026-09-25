@@ -10,6 +10,7 @@ async function pickCounty(page: Page, query: string) {
 /** A county with no seeded detections, so assertions cannot collide with fixtures. */
 const COUNTY_FIPS = '19153'; // Polk, IA
 const COUNTY_LABEL = 'Polk, IA';
+const ORIGIN = 'http://localhost:4173';
 
 test.describe('admin detection management', () => {
 	test('the full lifecycle, through the modal: create, appear publicly, edit, retract, restore', async ({
@@ -71,11 +72,36 @@ test.describe('admin detection management', () => {
 		await expect(dialog).toHaveCount(0);
 		await expect(row()).not.toContainText('Retracted');
 
-		// Clean up so the suite can run repeatedly.
+		// --- delete: only once retracted, and only after confirming ---
 		await row().getByRole('link', { name: 'Edit' }).click();
+		await expect(dialog.getByRole('button', { name: 'Delete' })).toHaveCount(0);
 		await dialog.getByRole('button', { name: 'Retract' }).click();
 		await dialog.getByRole('button', { name: 'Yes, retract it' }).click();
 		await expect(dialog).toHaveCount(0);
+
+		await row().getByRole('link', { name: 'Edit' }).click();
+		await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
+		const confirm = page.getByRole('dialog', { name: 'Delete this detection permanently?' });
+		await expect(confirm).toContainText('cannot be undone');
+		await confirm.getByRole('button', { name: 'Cancel' }).click();
+		await expect(confirm).toHaveCount(0);
+		await expect(row()).toBeVisible();
+
+		await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
+		await confirm.getByRole('button', { name: 'Delete permanently' }).click();
+		await expect(page.getByRole('dialog')).toHaveCount(0);
+		await expect(row()).toHaveCount(0);
+		await page.goto('/admin?includeDeleted=1');
+		await expect(row()).toHaveCount(0);
+	});
+
+	test('a detection that is not retracted can’t be deleted', async ({ page }) => {
+		await signInAs(page, 'admin');
+		const res = await page.request.post('/admin/incidents/2?/delete', {
+			headers: { origin: ORIGIN },
+			form: {}
+		});
+		expect(res.status()).toBe(409);
 	});
 
 	test('the edit page still works on its own, for direct links', async ({ page }) => {

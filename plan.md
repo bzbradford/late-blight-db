@@ -875,3 +875,6 @@ Append one line per working session: date, what moved, what's next.
 - 2026-09-24 — Phase 6 staging: surveyed the AgWeather dev server; `/health`, deploy
   script with rollback, systemd user unit, nginx site, runbook. Next: one-time server
   setup (DNS, database, linger, certbot), first deploy.
+- 2026-09-24 — Admins can permanently delete a retracted detection (entered in error): a Delete
+  button beside Restore, a confirmation dialog, `deleteIncident` (admin-only, retracted-only,
+  audited with the full row). e2e covers it.

@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { and, asc, desc, eq, exists, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
-import { canEditIncident, type Viewer } from '$lib/auth/roles';
+import { canDeleteIncident, canEditIncident, type Viewer } from '$lib/auth/roles';
 import { db } from '$lib/server/db';
 import { counties, diseases, incidents, user } from '$lib/server/db/schema';
 import { recordAudit, type Tx } from '$lib/server/queries/audit';
@@ -279,6 +279,26 @@ export async function restoreIncident(id: number, actor: Actor) {
 		const before = await editableIncident(tx, id, actor);
 		await tx.update(incidents).set({ deletedAt: null }).where(eq(incidents.id, id));
 		await writeAudit(tx, 'restore', id, actor, before, null);
+	});
+}
+
+/**
+ * Permanently removes a detection that was entered in error. Admin-only, and only for one
+ * already retracted, so a live detection can never vanish in one step. The audit row keeps
+ * the full record as it stood (`audit_log.row_id` is not a foreign key), so the deletion
+ * itself stays accountable even though the detection is gone.
+ */
+export async function deleteIncident(id: number, actor: Actor) {
+	if (!canDeleteIncident(actor)) error(403, 'Only an admin can delete a detection.');
+	await db.transaction(async (tx) => {
+		const [before] = await selectAdmin(tx)
+			.where(eq(incidents.id, id))
+			.limit(1)
+			.for('update', { of: incidents });
+		if (!before) error(404, 'Not found');
+		if (!before.deletedAt) error(409, 'Retract a detection before deleting it.');
+		await tx.delete(incidents).where(eq(incidents.id, id));
+		await writeAudit(tx, 'delete', id, actor, before, null);
 	});
 }
 

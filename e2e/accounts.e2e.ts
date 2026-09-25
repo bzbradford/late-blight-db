@@ -72,13 +72,19 @@ test.describe('reporter permissions', () => {
 
 		expect((await page.request.get('/admin/incidents/1')).status()).toBe(200);
 		expect((await page.request.get('/admin/incidents/2')).status()).toBe(403);
-		for (const action of ['save', 'retract', 'restore']) {
+		for (const action of ['save', 'retract', 'restore', 'delete']) {
 			const res = await page.request.post(`/admin/incidents/2?/${action}`, {
 				headers: { origin: ORIGIN },
 				form: { diseaseId: '1', countyFips: '55078', observedOn: '2026-01-01' }
 			});
 			expect(res.status(), action).toBe(403);
 		}
+		// Nor can they delete even their own: that is for admins.
+		const del = await page.request.post('/admin/incidents/1?/delete', {
+			headers: { origin: ORIGIN },
+			form: {}
+		});
+		expect(del.status()).toBe(403);
 
 		// On the public map, Edit appears only on their own detection.
 		await page.goto('/?disease=late-blight&year=2026');

@@ -26,6 +26,14 @@ export function canEditIncident(viewer: Viewer | null, createdBy: string | null)
 	return viewer.role === 'admin' || (createdBy !== null && createdBy === viewer.id);
 }
 
+/**
+ * Permanent deletion is for a detection entered in error, and only an admin may do it —
+ * and only once it is retracted, so it has already left the public map.
+ */
+export function canDeleteIncident(viewer: Viewer | null): boolean {
+	return viewer?.role === 'admin';
+}
+
 /** Paths under /admin that only admins may reach — pages, form actions, and endpoints. */
 export const ADMIN_ONLY_PATHS = ['/admin/users', '/admin/import'];
 

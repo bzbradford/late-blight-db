@@ -12,6 +12,8 @@ export type IncidentEditorData = {
 	maxDate: string;
 	/** Absent when adding a detection. */
 	incident?: AdminIncident;
+	/** Whether the viewer may permanently delete it once retracted (admins). */
+	canDelete?: boolean;
 };
 
 /**
