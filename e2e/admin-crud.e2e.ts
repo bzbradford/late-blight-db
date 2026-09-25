@@ -23,6 +23,12 @@ test.describe('admin detection management', () => {
 		// --- create ---
 		await page.getByRole('link', { name: 'Add detection' }).click();
 		await expect(dialog).toBeVisible();
+		// A new detection is reported today unless the admin says otherwise.
+		const now = new Date();
+		const todayIso = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
+			.map((n) => String(n).padStart(2, '0'))
+			.join('-');
+		await expect(page.locator('#reportedOn')).toHaveValue(todayIso);
 		await page.selectOption('#diseaseId', { label: 'Late blight' });
 		await pickCounty(page, 'Polk Iowa');
 		// 2024: a season no other test counts, so this row can't race the feed tests.

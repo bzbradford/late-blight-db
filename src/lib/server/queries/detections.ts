@@ -14,7 +14,7 @@ export type Detection = {
 	countyName: string;
 	stateUsps: string;
 	observedOn: string;
-	reportedOn: string | null;
+	reportedOn: string;
 	crop: string | null;
 	operationType: string | null;
 	strain: string | null;
@@ -127,7 +127,7 @@ export type ExportRow = {
 	stateUsps: string;
 	countyName: string;
 	observedOn: string;
-	reportedOn: string | null;
+	reportedOn: string;
 	crop: string | null;
 	operationType: string | null;
 	strain: string | null;

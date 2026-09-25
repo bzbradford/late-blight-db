@@ -15,7 +15,7 @@ function form(overrides: Record<string, string> = {}) {
 		diseaseId: '1',
 		countyFips: '55025',
 		observedOn: '2026-09-08',
-		reportedOn: '',
+		reportedOn: '2026-09-09',
 		crop: 'Potato',
 		operationType: 'Commercial farm',
 		strain: 'US-23',
@@ -99,10 +99,14 @@ describe('parseIncident', () => {
 		expect(errors.reportedOn).toBeUndefined();
 	});
 
-	it('treats an omitted report date as absent rather than invalid', () => {
-		const { values, errors } = parseIncident(form({ reportedOn: '' }), { todayIso: TODAY });
-		expect(errors.reportedOn).toBeUndefined();
-		expect(values.reportedOn).toBeNull();
+	it('requires a report date', () => {
+		const { errors } = parseIncident(form({ reportedOn: '' }), { todayIso: TODAY });
+		expect(errors.reportedOn).toMatch(/Enter the date/);
+	});
+
+	it('rejects a report date in the future', () => {
+		const { errors } = parseIncident(form({ reportedOn: '2026-09-12' }), { todayIso: TODAY });
+		expect(errors.reportedOn).toMatch(/future/);
 	});
 
 	it('rejects an over-long free-text value', () => {

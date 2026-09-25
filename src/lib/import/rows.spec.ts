@@ -115,6 +115,17 @@ describe('buildRow', () => {
 		expect(result.label).toEqual({ disease: 'Late blight', county: 'Dane, WI' });
 	});
 
+	it('gives a row with no reported_on its observed_on date', () => {
+		const base = { disease: 'late-blight', county_fips: '55025', observed_on: '2026-09-19' };
+		const blank = buildRow(2, rec(base), context);
+		if (isRowError(blank)) throw new Error(blank.messages.join());
+		expect(blank.values.reportedOn).toBe('2026-09-19');
+
+		const given = buildRow(3, rec({ ...base, reported_on: '2026-09-21' }), context);
+		if (isRowError(given)) throw new Error(given.messages.join());
+		expect(given.values.reportedOn).toBe('2026-09-21');
+	});
+
 	it('collects every problem in a row, not just the first', () => {
 		const result = buildRow(
 			7,

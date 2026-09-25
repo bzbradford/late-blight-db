@@ -78,7 +78,7 @@ export const incidents = pgTable(
 			.references(() => counties.fips),
 
 		observedOn: date('observed_on').notNull(),
-		reportedOn: date('reported_on'),
+		reportedOn: date('reported_on').notNull(),
 
 		crop: text('crop'),
 		operationType: text('operation_type'),

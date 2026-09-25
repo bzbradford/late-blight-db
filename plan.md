@@ -882,3 +882,7 @@ Append one line per working session: date, what moved, what's next.
   was a day short and `feed.e2e.ts` failed; it now uses the app's local `today()`. Quieted
   `pnpm test`: e2e server output goes to `e2e/.server.log`, Chromium-only install, pnpm
   throughout. Full suite green.
+- 2026-09-24 — "Reported on" is required: a new detection defaults to today; a CSV row with a
+  blank `reported_on` takes `observed_on`. Migration 0006 backfills existing rows the same way
+  (one `backfill-reported-on` audit row each) and makes the column NOT NULL (`deploy.sh`
+  applies it on the next staging deploy).

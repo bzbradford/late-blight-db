@@ -7,7 +7,7 @@ const BASE: IncidentInput = {
 	diseaseId: 1,
 	countyFips: '55025',
 	observedOn: '2026-09-19',
-	reportedOn: null,
+	reportedOn: '2026-09-19',
 	crop: 'Potato',
 	operationType: null,
 	strain: 'US-23',

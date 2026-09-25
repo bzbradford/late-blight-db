@@ -26,7 +26,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		state: r.stateUsps,
 		county: r.countyName,
 		observed_on: r.observedOn,
-		reported_on: r.reportedOn ?? '',
+		reported_on: r.reportedOn,
 		crop: r.crop ?? '',
 		operation_type: r.operationType ?? '',
 		strain: r.strain ?? '',

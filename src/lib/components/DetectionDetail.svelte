@@ -29,7 +29,7 @@
 							'Observed',
 							`${formatShortDate(detection.observedOn)} (${timeAgo(detection.observedOn)})`
 						],
-						['Reported', detection.reportedOn ? formatShortDate(detection.reportedOn) : null],
+						['Reported', formatShortDate(detection.reportedOn)],
 						['Crop', detection.crop],
 						['Operation', detection.operationType],
 						['Strain', detection.strain],

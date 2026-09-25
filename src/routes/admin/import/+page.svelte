@@ -348,7 +348,9 @@
 				<dt class="font-mono text-xs text-foreground">observed_on</dt>
 				<dd>Required. <code>YYYY-MM-DD</code>.</dd>
 				<dt class="font-mono text-xs text-foreground">reported_on</dt>
-				<dd>Optional. <code>YYYY-MM-DD</code>.</dd>
+				<dd>
+					Optional. <code>YYYY-MM-DD</code>. Left blank, it takes the <code>observed_on</code> date.
+				</dd>
 				<dt class="font-mono text-xs text-foreground">
 					crop, operation_type, strain, source, comments
 				</dt>

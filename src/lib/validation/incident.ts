@@ -10,7 +10,7 @@ export type IncidentInput = {
 	diseaseId: number;
 	countyFips: string;
 	observedOn: string;
-	reportedOn: string | null;
+	reportedOn: string;
 	crop: string | null;
 	operationType: string | null;
 	strain: string | null;
@@ -89,7 +89,7 @@ export function parseIncident(
 		diseaseId: Number(data.get('diseaseId')),
 		countyFips: String(data.get('countyFips') ?? '').trim(),
 		observedOn: String(data.get('observedOn') ?? '').trim(),
-		reportedOn: String(data.get('reportedOn') ?? '').trim() || null,
+		reportedOn: String(data.get('reportedOn') ?? '').trim(),
 		crop: normalizeText(data.get('crop')),
 		operationType: normalizeText(data.get('operationType')),
 		strain: normalizeText(data.get('strain')),
@@ -116,15 +116,15 @@ export function parseIncident(
 		errors.observedOn = 'The observation date cannot be in the future.';
 	}
 
-	if (values.reportedOn) {
-		if (!isIsoDate(values.reportedOn)) {
-			errors.reportedOn = 'Enter a valid date.';
-		} else if (values.reportedOn > todayIso) {
-			errors.reportedOn = 'The report date cannot be in the future.';
-		} else if (!errors.observedOn) {
-			const order = reportedBeforeObserved(values.observedOn, values.reportedOn);
-			if (order) errors.reportedOn = order;
-		}
+	if (!values.reportedOn) {
+		errors.reportedOn = 'Enter the date the detection was reported.';
+	} else if (!isIsoDate(values.reportedOn)) {
+		errors.reportedOn = 'Enter a valid date.';
+	} else if (values.reportedOn > todayIso) {
+		errors.reportedOn = 'The report date cannot be in the future.';
+	} else if (!errors.observedOn) {
+		const order = reportedBeforeObserved(values.observedOn, values.reportedOn);
+		if (order) errors.reportedOn = order;
 	}
 
 	for (const field of ['crop', 'operationType', 'strain', 'source'] as const) {

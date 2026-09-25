@@ -241,6 +241,7 @@ try {
 	].map(({ fips, byReporter, imported, ...r }) => ({
 		...r,
 		countyFips: fips,
+		reportedOn: r.observedOn,
 		createdBy: byReporter ? reporterId : adminId,
 		imported: imported ?? false
 	}));

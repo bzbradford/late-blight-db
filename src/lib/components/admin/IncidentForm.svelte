@@ -145,13 +145,12 @@
 		</div>
 
 		<div class="space-y-1.5">
-			<label for="reportedOn" class="text-sm font-medium">
-				Reported on <span class="font-normal text-muted-foreground">(optional)</span>
-			</label>
+			<label for="reportedOn" class="text-sm font-medium"> Reported on </label>
 			<input
 				id="reportedOn"
 				name="reportedOn"
 				type="date"
+				required
 				min={observedOn || undefined}
 				max={maxDate}
 				value={reportedOn}

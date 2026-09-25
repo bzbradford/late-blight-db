@@ -18,7 +18,7 @@
 		diseases={data.diseases}
 		counties={data.counties}
 		suggestions={data.suggestions}
-		values={form?.values ?? {}}
+		values={form?.values ?? { reportedOn: data.maxDate }}
 		errors={form?.errors ?? {}}
 		submitLabel="Add detection"
 		maxDate={data.maxDate}

@@ -115,7 +115,7 @@
 				diseases={data.diseases}
 				counties={data.counties}
 				suggestions={data.suggestions}
-				values={failure?.values ?? incident ?? {}}
+				values={failure?.values ?? incident ?? { reportedOn: data.maxDate }}
 				errors={failure?.errors ?? {}}
 				duplicates={failure?.duplicates ?? []}
 				submitLabel={incident ? 'Save changes' : 'Add detection'}

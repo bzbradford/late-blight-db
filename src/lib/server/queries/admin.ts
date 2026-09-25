@@ -16,7 +16,7 @@ export type AdminIncident = {
 	countyName: string;
 	stateUsps: string;
 	observedOn: string;
-	reportedOn: string | null;
+	reportedOn: string;
 	crop: string | null;
 	operationType: string | null;
 	strain: string | null;

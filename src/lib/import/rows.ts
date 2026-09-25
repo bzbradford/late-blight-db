@@ -165,7 +165,8 @@ export function buildRow(
 		diseaseId: disease ? String(disease.id) : '',
 		countyFips: 'county' in county ? county.county.fips : '',
 		observedOn: record.observed_on,
-		reportedOn: record.reported_on,
+		// Optional in a CSV, required on a detection: a blank one takes the observation date.
+		reportedOn: record.reported_on || record.observed_on,
 		crop: record.crop,
 		operationType: record.operation_type,
 		strain: record.strain,
@@ -177,9 +178,11 @@ export function buildRow(
 		{ todayIso: context.todayIso }
 	);
 
-	// Disease and county problems were already reported above, in more specific terms.
+	// Disease and county problems were already reported above, in more specific terms, and a
+	// report date copied from observed_on can only repeat what is said about observed_on.
 	for (const [field, message] of Object.entries(errors) as [keyof FieldErrors, string][]) {
 		if (field === 'diseaseId' || field === 'countyFips') continue;
+		if (field === 'reportedOn' && !record.reported_on) continue;
 		messages.push(`${FIELD_LABELS[field]}: ${message}`);
 	}
 
