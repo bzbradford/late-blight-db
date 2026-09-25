@@ -20,6 +20,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from '../src/lib/server/db/schema';
 import { diseases, incidents, invitations, user } from '../src/lib/server/db/schema';
+import { today } from '../src/lib/validation/incident';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) throw new Error('DATABASE_URL is not set');
@@ -38,11 +39,15 @@ const now = new Date();
 const thisYear = now.getFullYear();
 const lastYear = thisYear - 1;
 
-/** Days before today, as an ISO date — used to place rows in the recency bins. */
+/**
+ * Days before today, as an ISO date — used to place rows in the recency bins. Local
+ * calendar date, as the app reckons "today": `toISOString()` would give the UTC date,
+ * a day ahead every evening in the Americas, and the e2e "(3 days ago)" would read 2.
+ */
 function daysAgo(n: number) {
 	const d = new Date(now);
 	d.setDate(d.getDate() - n);
-	return d.toISOString().slice(0, 10);
+	return today(d);
 }
 
 function onDate(year: number, month: number, day: number) {

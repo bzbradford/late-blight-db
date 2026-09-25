@@ -25,7 +25,7 @@ pnpm check        # svelte-check typecheck — must be 0 errors
 pnpm lint         # prettier --check && eslint
 pnpm format       # prettier --write
 pnpm test:unit    # Vitest (client + server projects)
-pnpm test:e2e     # Playwright
+pnpm test:e2e     # Playwright; server output goes to e2e/.server.log (E2E_SERVER_LOGS=1 streams it)
 pnpm db:generate  # Generate a migration from schema changes
 pnpm db:migrate   # Apply migrations
 pnpm db:studio    # Drizzle Studio

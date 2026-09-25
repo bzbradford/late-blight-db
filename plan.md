@@ -878,3 +878,7 @@ Append one line per working session: date, what moved, what's next.
 - 2026-09-24 — Admins can permanently delete a retracted detection (entered in error): a Delete
   button beside Restore, a confirmation dialog, `deleteIncident` (admin-only, retracted-only,
   audited with the full row). e2e covers it.
+- 2026-09-24 — `seed:dev` dated rows in UTC, so evenings in the Americas every relative date
+  was a day short and `feed.e2e.ts` failed; it now uses the app's local `today()`. Quieted
+  `pnpm test`: e2e server output goes to `e2e/.server.log`, Chromium-only install, pnpm
+  throughout. Full suite green.
