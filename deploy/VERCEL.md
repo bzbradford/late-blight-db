@@ -50,14 +50,14 @@ this says, search the dashboard for it by name.
 3. **Node.js version: 24.x** (Settings → Build and Deployment).
 4. **Environment variables**, scoped to **Production** (see `env.vercel.example`):
 
-   | Variable                    | Value                                              |
-   | --------------------------- | -------------------------------------------------- |
-   | `DATABASE_URL`              | transaction pooler string (port 6543)              |
-   | `MIGRATION_DATABASE_URL`    | session pooler string (port 5432)                  |
-   | `ORIGIN`                    | `https://<name>.vercel.app`, no trailing slash     |
-   | `BETTER_AUTH_SECRET`        | a fresh one; don't reuse staging's or your dev one |
-   | `PUBLIC_MAP_DEFAULT_EXTENT` | `conus`                                            |
-   | `PUBLIC_BASEMAP_STYLE_URL`  | optional; unset uses OpenFreeMap Positron          |
+   | Variable                    | Value                                                                            |
+   | --------------------------- | -------------------------------------------------------------------------------- |
+   | `DATABASE_URL`              | transaction pooler string (port 6543)                                            |
+   | `MIGRATION_DATABASE_URL`    | session pooler string (port 5432)                                                |
+   | `ORIGIN`                    | `https://<name>.vercel.app`, no trailing slash                                   |
+   | `BETTER_AUTH_SECRET`        | a fresh one; don't reuse staging's or your dev one                               |
+   | `PUBLIC_MAP_DEFAULT_EXTENT` | `conus`                                                                          |
+   | `PUBLIC_BASEMAP_STYLE_URL`  | optional: leave it out for OpenFreeMap Positron. An empty value means no basemap |
 
    Generate the secret with
    `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
