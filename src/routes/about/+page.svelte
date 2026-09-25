@@ -1,17 +1,15 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
+	import AppHeader from '$lib/components/shell/AppHeader.svelte';
 </script>
 
 <svelte:head>
 	<title>About the detection map</title>
 </svelte:head>
 
-<main class="mx-auto max-w-2xl px-4 py-10">
-	<a href={resolve('/')} class="text-sm text-muted-foreground hover:text-foreground"
-		>← Back to map</a
-	>
+<AppHeader />
 
-	<h1 class="mt-4 text-2xl font-semibold tracking-tight">About this map</h1>
+<main class="mx-auto max-w-2xl px-4 py-10">
+	<h1 class="text-2xl font-semibold tracking-tight">About this map</h1>
 
 	<div class="mt-6 space-y-6 text-sm leading-relaxed">
 		<section>

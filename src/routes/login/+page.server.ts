@@ -11,7 +11,7 @@ import type { Actions, PageServerLoad } from './$types';
  */
 function afterSignIn(url: URL) {
 	const to = url.searchParams.get('redirectTo');
-	return to && /^\/(?![/\\])[^\\\s]*$/.test(to) ? to : '/admin';
+	return to && /^\/(?![/\\])[^\\\s]*$/.test(to) ? to : '/detections';
 }
 
 export const load: PageServerLoad = async ({ locals, url }) => {

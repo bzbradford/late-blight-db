@@ -22,6 +22,7 @@ Its durable lessons have been folded into `CLAUDE.md`; the summary below is enou
 | **5** | **Polish — see below**                                 | 🟡 **All tracks ✅; one manual pass left**  |
 | 5½    | Accounts: roles, invitations, attribution (5H)         | ✅ Done, follow-ups included                |
 | 6     | Deploy (systemd, reverse proxy, backups, health check) | 🟡 Staging scripted; one-time setup pending |
+| 7     | Public detections table + shared nav (Track 7A)        | ✅ Done (uncommitted as of 2026-09-25)      |
 
 Phase 6: staging first (below), on the AgWeather dev server, for stakeholder feedback.
 The production host is still undecided; it needs the production Postgres arrangement and a
@@ -814,6 +815,44 @@ Notes from implementation:
 
 ---
 
+## Phase 7 — Detections table
+
+### Track 7A — Public `/detections` table, shared nav (2026-09-25) — ✅ DONE
+
+- **D25. One detection list, public.** The old `/admin` list becomes `/detections`, open to
+  everyone. Signed-in viewers also get Add/Edit (the same `IncidentEditor` modal),
+  "Show retracted", and "Reported by". That filter's option values are user IDs, so only
+  signed-in viewers receive it. `/admin` redirects, mapping `diseaseId` → `disease` (slug)
+  and `includeDeleted` → `retracted`.
+- **D26. Sorting and paging in the browser.** Filters (disease, year, and for signed-in
+  viewers reporter and retracted) stay server-side in the query string. The table sorts
+  and pages whatever the filters return. A season is hundreds of rows; if it ever reaches
+  tens of thousands, move paging to the server.
+- **D27. One header everywhere.** `AppHeader`: title · Map | Detections | Account | Users |
+  Import CSV (tabs shown by role). The map passes its disease tabs and year picker in as
+  `controls`. On phones the map header drops the title to stay two rows. The brand bar
+  keeps Sign in/out and now says "Signed in as Name (Role)"; the "Administration" link
+  is gone. The map's phone toggle reads "Map | List" so it doesn't collide with the
+  Detections tab.
+- [x] `shadcn-svelte@1.1.1 add table data-table` (`@tanstack/table-core`); generic
+      `DataTable.svelte` with sortable headers, `aria-sort`, pager, rows per page.
+- [x] `listDetectionRows` / `listDetectionYears` in `queries/detections.ts`, sharing one
+      select with `getDetections`. `listIncidents` / `listIncidentYears` removed.
+- [x] Columns: ID, Observed, County (links to the map's share URL), Disease, Crop,
+      Operation, Strain, Reported by, Details (the map's `DetectionDetail` dialog) / Edit.
+- [x] Download CSV follows the table's disease/year filters; `/detections.csv` accepts
+      `disease=all`.
+- [x] Sign-in, invite, reset, and incident-page redirects land on `/detections`.
+- [x] The map strips share params on any arrival, not only a first load (the table's
+      county links arrive by client-side navigation).
+- [x] Tests: `DataTable.svelte.spec.ts` (paging, sorting, page size), `e2e/detections.e2e.ts`
+      (public vs signed-in, sort, download link, map link), retracted rows hidden from a
+      visitor asking `?retracted=1`, `/admin` filter mapping. Existing e2e updated.
+- Later, if wanted: a text search over the table (TanStack global filter), and paging
+  state in the URL.
+
+---
+
 ## Session log
 
 Append one line per working session: date, what moved, what's next.
@@ -886,3 +925,6 @@ Append one line per working session: date, what moved, what's next.
   blank `reported_on` takes `observed_on`. Migration 0006 backfills existing rows the same way
   (one `backfill-reported-on` audit row each) and makes the column NOT NULL (`deploy.sh`
   applies it on the next staging deploy).
+- 2026-09-25 — Track 7A: public `/detections` table (shadcn DataTable, client-side sort and
+  paging), shared `AppHeader` nav on every page, `/admin` → `/detections`. check/lint clean;
+  unit and e2e green; screenshot-checked at 390/768/1024/1280. Not yet committed.

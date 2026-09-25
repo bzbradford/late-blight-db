@@ -48,15 +48,17 @@ function visible(diseaseSlug: string, year: number) {
 	);
 }
 
-export async function getDetections(
-	diseaseSlug: string,
-	year: number,
-	viewer: Viewer | null = null
-): Promise<Detection[]> {
-	const rows = await db
+/**
+ * The columns every public detection listing reads, with their joins. `createdBy` is
+ * selected only to compute `canEdit`; `toDetection` drops it.
+ */
+function selectDetections() {
+	return db
 		.select({
 			id: incidents.id,
 			publicId: incidents.publicId,
+			diseaseSlug: diseases.slug,
+			diseaseName: diseases.name,
 			countyFips: incidents.countyFips,
 			countyName: counties.name,
 			stateUsps: counties.stateUsps,
@@ -68,6 +70,7 @@ export async function getDetections(
 			comments: incidents.comments,
 			source: incidents.source,
 			imported: incidents.imported,
+			deletedAt: incidents.deletedAt,
 			createdBy: incidents.createdBy,
 			reporterName: user.name,
 			reporterAffiliation: user.affiliation
@@ -75,17 +78,107 @@ export async function getDetections(
 		.from(incidents)
 		.innerJoin(diseases, eq(diseases.id, incidents.diseaseId))
 		.innerJoin(counties, eq(counties.fips, incidents.countyFips))
-		.leftJoin(user, eq(user.id, incidents.createdBy))
+		.leftJoin(user, eq(user.id, incidents.createdBy));
+}
+
+type SelectedRow = Awaited<ReturnType<typeof selectDetections>>[number];
+
+/** The creator's user ID is used here and dropped: it never leaves the server. */
+function toDetection(row: SelectedRow, viewer: Viewer | null): Detection {
+	return {
+		id: row.id,
+		publicId: row.publicId,
+		countyFips: row.countyFips,
+		countyName: row.countyName,
+		stateUsps: row.stateUsps,
+		observedOn: row.observedOn,
+		reportedOn: row.reportedOn,
+		crop: row.crop,
+		operationType: row.operationType,
+		strain: row.strain,
+		comments: row.comments,
+		source: row.source,
+		reportedBy:
+			row.reporterName === null
+				? null
+				: { name: row.reporterName, affiliation: row.reporterAffiliation },
+		imported: row.imported,
+		canEdit: canEditIncident(viewer, row.createdBy)
+	};
+}
+
+export async function getDetections(
+	diseaseSlug: string,
+	year: number,
+	viewer: Viewer | null = null
+): Promise<Detection[]> {
+	const rows = await selectDetections()
 		.where(visible(diseaseSlug, year))
 		.orderBy(desc(incidents.observedOn), desc(incidents.id));
+	return rows.map((r) => toDetection(r, viewer));
+}
 
-	// The creator's user ID is used here and dropped: it never leaves the server.
-	return rows.map(({ createdBy, reporterName, reporterAffiliation, ...r }) => ({
-		...r,
-		reportedBy:
-			reporterName === null ? null : { name: reporterName, affiliation: reporterAffiliation },
-		canEdit: canEditIncident(viewer, createdBy)
+/** A row of the detections table: a detection that also says which disease it is. */
+export type DetectionRow = Detection & {
+	diseaseSlug: string;
+	diseaseName: string;
+	/** Always false for the public, who never receive retracted rows. */
+	retracted: boolean;
+};
+
+export type DetectionFilters = {
+	diseaseSlug?: string;
+	year?: number;
+	/** Signed-in viewers only; ignored for the public. */
+	includeRetracted?: boolean;
+	/** A user ID. Signed-in viewers only; ignored for the public. */
+	reportedBy?: string;
+};
+
+/**
+ * The detections table at /detections, for anyone. The signed-in-only filters are
+ * dropped here rather than by the caller, so no route can hand retracted rows to the
+ * public by forgetting a check.
+ */
+export async function listDetectionRows(
+	filters: DetectionFilters,
+	viewer: Viewer | null
+): Promise<DetectionRow[]> {
+	const signedIn = viewer !== null;
+	const rows = await selectDetections()
+		.where(
+			and(
+				filters.diseaseSlug ? eq(diseases.slug, filters.diseaseSlug) : undefined,
+				filters.year
+					? sql`extract(year from ${incidents.observedOn}) = ${filters.year}`
+					: undefined,
+				signedIn && filters.includeRetracted ? undefined : isNull(incidents.deletedAt),
+				signedIn && filters.reportedBy ? eq(incidents.createdBy, filters.reportedBy) : undefined
+			)
+		)
+		.orderBy(desc(incidents.observedOn), desc(incidents.id));
+
+	return rows.map((r) => ({
+		...toDetection(r, viewer),
+		diseaseSlug: r.diseaseSlug,
+		diseaseName: r.diseaseName,
+		retracted: r.deletedAt !== null
 	}));
+}
+
+/**
+ * Every year with a detection of any disease, newest first, for the table's year filter.
+ * Retracted rows count only when the viewer can see them, so a year holding nothing but
+ * retractions is not offered to the public.
+ */
+export async function listDetectionYears(includeRetracted: boolean): Promise<number[]> {
+	const year = sql<number>`extract(year from ${incidents.observedOn})::int`;
+	const rows = await db
+		.selectDistinct({ year })
+		.from(incidents)
+		.where(includeRetracted ? undefined : isNull(incidents.deletedAt))
+		.orderBy(desc(year));
+	return rows.map((r) => Number(r.year));
 }
 
 /**
@@ -138,11 +231,11 @@ export type ExportRow = {
 };
 
 /**
- * Rows for the public CSV download: one disease, one year or all of them. Retracted
- * detections are excluded, exactly as on the map.
+ * Rows for the public CSV download: one disease or all (`null`), one year or all of them.
+ * Retracted detections are excluded, exactly as on the map.
  */
 export async function getDetectionsForExport(
-	diseaseSlug: string,
+	diseaseSlug: string | null,
 	year: number | null
 ): Promise<ExportRow[]> {
 	const rows = await db
@@ -169,7 +262,7 @@ export async function getDetectionsForExport(
 		.leftJoin(user, eq(user.id, incidents.createdBy))
 		.where(
 			and(
-				eq(diseases.slug, diseaseSlug),
+				diseaseSlug === null ? undefined : eq(diseases.slug, diseaseSlug),
 				isNull(incidents.deletedAt),
 				year === null ? undefined : sql`extract(year from ${incidents.observedOn}) = ${year}`
 			)

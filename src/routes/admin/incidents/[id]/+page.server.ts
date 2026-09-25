@@ -60,7 +60,7 @@ export const actions: Actions = {
 		if (hasErrors(errors)) return fail(400, { errors, values });
 
 		await updateIncident(id, values, viewerOf(locals.user));
-		redirect(303, '/admin');
+		redirect(303, '/detections');
 	},
 
 	retract: async ({ params, locals }) => {
@@ -74,7 +74,7 @@ export const actions: Actions = {
 		if (!locals.user) return fail(401, { errors: {}, values: {} });
 		const { id } = await editable(params.id, locals.user);
 		await restoreIncident(id, viewerOf(locals.user));
-		redirect(303, '/admin');
+		redirect(303, '/detections');
 	},
 
 	delete: async ({ params, locals }) => {

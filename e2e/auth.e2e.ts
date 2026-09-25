@@ -11,9 +11,10 @@ test.describe('admin authentication', () => {
 		await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
 	});
 
-	test('the public map never exposes an admin link to anonymous visitors', async ({ page }) => {
+	test('the public map never exposes account links to anonymous visitors', async ({ page }) => {
 		await page.goto('/');
-		await expect(page.getByRole('link', { name: 'Administration' })).toHaveCount(0);
+		const nav = page.getByRole('navigation', { name: 'Site' });
+		await expect(nav.getByRole('link')).toHaveText(['Map', 'Detections']);
 		await expect(page.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login');
 	});
 
@@ -43,18 +44,24 @@ test.describe('admin authentication', () => {
 		await page.getByLabel('Password').fill(PASSWORD);
 		await page.getByRole('button', { name: /Sign in/ }).click();
 
-		await expect(page).toHaveURL(/\/admin$/);
-		await expect(page.getByText(/Signed in as/)).toBeVisible();
+		await expect(page).toHaveURL(/\/detections$/);
+		await expect(page.getByText('Signed in as E2E Admin (Admin)')).toBeVisible();
 
 		// The session must survive a fresh page load, not just live in memory.
 		await page.reload();
-		await expect(page.getByText(/Signed in as/)).toBeVisible();
+		await expect(page.getByText('Signed in as E2E Admin (Admin)')).toBeVisible();
 
-		// And the public map now offers a way back in.
+		// And the public map now carries the account tabs.
 		await page.goto('/');
-		await expect(page.getByRole('link', { name: 'Administration' })).toBeVisible();
+		const nav = page.getByRole('navigation', { name: 'Site' });
+		await expect(nav.getByRole('link')).toHaveText([
+			'Map',
+			'Detections',
+			'Account',
+			'Users',
+			'Import CSV'
+		]);
 
-		await page.goto('/admin');
 		await page.getByRole('button', { name: 'Sign out' }).click();
 		await expect(page).toHaveURL(/\/$/);
 
@@ -64,12 +71,13 @@ test.describe('admin authentication', () => {
 
 	test('redirectTo returns the visitor to the page they asked for', async ({ page }) => {
 		await page.goto('/admin');
-		await expect(page).toHaveURL(/redirectTo=%2Fadmin/);
+		await page.goto('/admin/account');
+		await expect(page).toHaveURL(/redirectTo=%2Fadmin%2Faccount/);
 
 		await page.getByLabel('Email').fill(EMAIL);
 		await page.getByLabel('Password').fill(PASSWORD);
 		await page.getByRole('button', { name: /Sign in/ }).click();
-		await expect(page).toHaveURL(/\/admin$/);
+		await expect(page).toHaveURL(/\/admin\/account$/);
 	});
 
 	test('redirectTo cannot send the visitor to another site', async ({ page }) => {
@@ -77,7 +85,7 @@ test.describe('admin authentication', () => {
 		await page.getByLabel('Email').fill(EMAIL);
 		await page.getByLabel('Password').fill(PASSWORD);
 		await page.getByRole('button', { name: /Sign in/ }).click();
-		await expect(page).toHaveURL(/^http:\/\/localhost:\d+\/admin$/);
+		await expect(page).toHaveURL(/^http:\/\/localhost:\d+\/detections$/);
 	});
 });
 

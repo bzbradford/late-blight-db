@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-/** The detection list lives at `/admin` now; keep old links and bookmarks working. */
+/** An older address for the detection list; `/admin` maps its filters onto `/detections`. */
 export const GET: RequestHandler = ({ url }) => {
 	redirect(308, `/admin${url.search}`);
 };

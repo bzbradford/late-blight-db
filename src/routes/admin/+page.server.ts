@@ -1,33 +1,26 @@
-import { listIncidents, listIncidentYears, listReporters } from '$lib/server/queries/admin';
-import { canEditIncident, viewerOf } from '$lib/auth/roles';
+import { redirect } from '@sveltejs/kit';
 import { listDiseases } from '$lib/server/queries/diseases';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ url, locals }) => {
-	const diseaseId = Number(url.searchParams.get('diseaseId')) || undefined;
-	const year = Number(url.searchParams.get('year')) || undefined;
-	const includeDeleted = url.searchParams.get('includeDeleted') === '1';
-	const reportedBy = url.searchParams.get('reportedBy') || undefined;
+/**
+ * The detection list moved to the public /detections, where signed-in viewers also get
+ * editing and retractions. Old links and bookmarks land on the same filters there.
+ */
+export const load: PageServerLoad = async ({ url }) => {
+	const old = url.searchParams;
+	// Built for the redirect only, not reactive state.
+	const params = new URLSearchParams();
 
-	const [diseases, years, reporters, rows] = await Promise.all([
-		listDiseases(),
-		listIncidentYears(),
-		listReporters(),
-		listIncidents({ diseaseId, year, includeDeleted, reportedBy })
-	]);
+	const diseaseId = Number(old.get('diseaseId'));
+	if (diseaseId) {
+		const disease = (await listDiseases()).find((d) => d.id === diseaseId);
+		if (disease) params.set('disease', disease.slug);
+	}
+	for (const key of ['year', 'reportedBy']) {
+		const value = old.get(key);
+		if (value) params.set(key, value);
+	}
+	if (old.get('includeDeleted') === '1') params.set('retracted', '1');
 
-	// guardAdmin has already refused anonymous requests.
-	const viewer = viewerOf(locals.user!);
-	const incidents = rows.map(({ createdBy, ...r }) => ({
-		...r,
-		canEdit: canEditIncident(viewer, createdBy)
-	}));
-	return {
-		diseases,
-		years,
-		reporters,
-		incidents,
-		viewerId: viewer.id,
-		filters: { diseaseId, year, includeDeleted, reportedBy }
-	};
+	redirect(303, `/detections${params.size ? `?${params}` : ''}`);
 };

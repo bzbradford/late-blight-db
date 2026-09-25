@@ -181,7 +181,7 @@
 							<td class="py-2 pr-3 text-right tabular-nums">
 								{#if user.detections > 0}
 									<a
-										href="{resolve('/admin')}?reportedBy={encodeURIComponent(user.id)}"
+										href="{resolve('/detections')}?reportedBy={encodeURIComponent(user.id)}"
 										class="underline underline-offset-4">{user.detections}</a
 									>
 								{:else}

@@ -19,14 +19,14 @@ export function statePath(account: Account) {
 	return `e2e/.auth/${account}.json`;
 }
 
-/** Puts the saved session's cookie into this page's context and opens the admin list. */
+/** Puts the saved session's cookie into this page's context and opens the detections table. */
 export async function signInAs(page: Page, account: Account) {
 	const state: { cookies: Parameters<ReturnType<Page['context']>['addCookies']>[0] } = JSON.parse(
 		readFileSync(statePath(account), 'utf8')
 	);
 	await page.context().addCookies(state.cookies);
-	await page.goto('/admin');
-	await expect(page).toHaveURL(/\/admin$/);
+	await page.goto('/detections');
+	await expect(page).toHaveURL(/\/detections$/);
 }
 
 /** Signs in through the form, as a person would. */
@@ -35,5 +35,5 @@ export async function signInWithForm(page: Page, account: { email: string; passw
 	await page.getByLabel('Email').fill(account.email);
 	await page.getByLabel('Password').fill(account.password);
 	await page.getByRole('button', { name: /Sign in/ }).click();
-	await expect(page).toHaveURL(/\/admin$/);
+	await expect(page).toHaveURL(/\/detections$/);
 }

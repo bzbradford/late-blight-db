@@ -24,10 +24,9 @@ test.describe('reporter permissions', () => {
 		const nav = page.locator('header');
 		await expect(nav.getByRole('link', { name: 'Users' })).toHaveCount(0);
 		await expect(nav.getByRole('link', { name: 'Import CSV' })).toHaveCount(0);
-		await expect(nav).toContainText('E2E Reporter');
-		// Reporters don't administer anything, so the top bar calls it their account.
-		await expect(page.getByRole('link', { name: 'Account', exact: true })).toBeVisible();
-		await expect(nav.getByRole('link', { name: 'Back to map' })).toHaveAttribute('href', '/');
+		await expect(page.getByText('Signed in as E2E Reporter (Reporter)')).toBeVisible();
+		await expect(nav.getByRole('link', { name: 'Account', exact: true })).toBeVisible();
+		await expect(nav.getByRole('link', { name: 'Map', exact: true })).toHaveAttribute('href', '/');
 
 		for (const path of ['/admin/users', '/admin/import', '/admin/import/template.csv']) {
 			expect((await page.request.get(path, { maxRedirects: 0 })).status(), path).toBe(403);
@@ -52,8 +51,8 @@ test.describe('reporter permissions', () => {
 		expect(promote.status()).toBe(404);
 		// Refused by Better Auth itself, not SvelteKit's 404 page for a path it never reached.
 		expect(promote.headers()['x-sveltekit-page']).toBeUndefined();
-		await page.goto('/admin');
-		await expect(page.locator('header')).toContainText('E2E Reporter (Reporter)');
+		await page.goto('/admin/account');
+		await expect(page.getByText('Signed in as E2E Reporter (Reporter)')).toBeVisible();
 	});
 
 	test('a reporter edits their own detections but not anyone else’s', async ({ page }) => {
@@ -61,7 +60,7 @@ test.describe('reporter permissions', () => {
 
 		// Seeded: detection 1 (Dane, 3 days ago) is the reporter's; detection 2 the admin's.
 		// `seed:dev` restarts the identity, so these IDs are stable.
-		await page.goto('/admin?diseaseId=&year=2026');
+		await page.goto('/detections?year=2026');
 		const own = page
 			.locator('tbody tr', { hasText: 'Dane, WI' })
 			.filter({ hasText: 'E2E Reporter' });
@@ -197,8 +196,8 @@ test.describe('accounts', () => {
 		await invitee.getByLabel(/^Password/).fill(firstPassword);
 		await invitee.getByLabel('Confirm password').fill(firstPassword);
 		await invitee.getByRole('button', { name: 'Create account and sign in' }).click();
-		await expect(invitee).toHaveURL(/\/admin$/, { timeout: 15_000 });
-		await expect(invitee.locator('header')).toContainText('Pat Grower (Reporter)');
+		await expect(invitee).toHaveURL(/\/detections$/, { timeout: 15_000 });
+		await expect(invitee.getByText('Signed in as Pat Grower (Reporter)')).toBeVisible();
 		session = await invitee.context().storageState();
 
 		// The link was single-use.
@@ -220,8 +219,8 @@ test.describe('accounts', () => {
 
 	test('a user changes their own password and profile', async ({ browser }) => {
 		const page = await asInvitee(browser);
-		await page.goto('/admin');
-		await page.locator('header').getByRole('link', { name: 'Pat Grower' }).click();
+		await page.goto('/detections');
+		await page.locator('header').getByRole('link', { name: 'Account' }).click();
 		await expect(page).toHaveURL(/\/admin\/account$/);
 
 		await page.getByLabel('Current password').fill('wrong-password-123');
@@ -239,7 +238,7 @@ test.describe('accounts', () => {
 		await page.getByLabel('Display name').fill('Pat Q. Grower');
 		await page.getByRole('button', { name: 'Save profile' }).click();
 		await expect(page.getByText('Saved.')).toBeVisible();
-		await expect(page.locator('header')).toContainText('Pat Q. Grower');
+		await expect(page.getByText('Signed in as Pat Q. Grower (Reporter)')).toBeVisible();
 		// Changing the password replaced this session's cookie.
 		session = await page.context().storageState();
 	});
@@ -263,7 +262,7 @@ test.describe('accounts', () => {
 		await user.getByLabel('New password').fill(thirdPassword);
 		await user.getByLabel('Confirm password').fill(thirdPassword);
 		await user.getByRole('button', { name: 'Set password and sign in' }).click();
-		await expect(user).toHaveURL(/\/admin$/, { timeout: 15_000 });
+		await expect(user).toHaveURL(/\/detections$/, { timeout: 15_000 });
 		session = await user.context().storageState();
 
 		await before.goto('/admin');

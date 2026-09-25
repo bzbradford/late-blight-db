@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
+	import AppHeader from '$lib/components/shell/AppHeader.svelte';
 	import * as Select from '$lib/components/ui/select';
 	import type { Disease } from '$lib/server/queries/diseases';
 	import type { ViewState } from '$lib/state/view.svelte';
@@ -12,17 +12,8 @@
 	let { diseases, view }: Props = $props();
 </script>
 
-<header class="border-b bg-background">
-	<div class="flex flex-wrap items-center gap-x-3 gap-y-2.5 px-4 py-2.5 sm:gap-x-6 sm:py-3">
-		<!-- A full reload, so the title always returns to the default view, like a fresh visit. -->
-		<a
-			href={resolve('/')}
-			data-sveltekit-reload
-			class="mr-auto text-base font-semibold tracking-tight"
-		>
-			Vegetable Disease Detections
-		</a>
-
+<AppHeader>
+	{#snippet controls()}
 		<nav aria-label="Disease" class="order-3 w-full sm:order-none sm:w-auto">
 			<!-- Tabs size to their names, so two fit one row at 360 px; a third would wrap. -->
 			<ul class="flex w-full flex-wrap gap-1 rounded-lg bg-muted p-1 sm:w-auto">
@@ -65,5 +56,5 @@
 				</Select.Content>
 			</Select.Root>
 		</div>
-	</div>
-</header>
+	{/snippet}
+</AppHeader>

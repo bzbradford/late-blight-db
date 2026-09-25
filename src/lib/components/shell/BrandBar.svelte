@@ -5,7 +5,8 @@
 	import SunIcon from '@lucide/svelte/icons/sun';
 	import { theme } from '$lib/state/theme.svelte';
 
-	let { signedIn = false, isAdmin = false }: { signedIn?: boolean; isAdmin?: boolean } = $props();
+	/** "Name (Role)" for a signed-in viewer; null for the public. */
+	let { signedInAs = null }: { signedInAs?: string | null } = $props();
 </script>
 
 <!--
@@ -22,11 +23,9 @@
 		University of Wisconsin–Madison
 	</a>
 
-	{#if signedIn}
-		<a href={resolve('/admin')} class="text-white/90 hover:text-white hover:underline">
-			<!-- Reporters don't administer anything; for them this is their own corner. -->
-			{isAdmin ? 'Administration' : 'Account'}
-		</a>
+	{#if signedInAs}
+		<!-- Account, Users, and Import CSV are tabs in the app header, beside Map and Detections. -->
+		<span class="hidden text-white/90 sm:inline">Signed in as {signedInAs}</span>
 		<!-- POST-only: a GET-triggerable sign-out can be fired by any embedded image. -->
 		<form method="POST" action="/logout" use:enhance>
 			<button type="submit" class="text-white/90 hover:text-white hover:underline">

@@ -8,7 +8,7 @@
 	import DetectionFeed from '$lib/components/DetectionFeed.svelte';
 	import DetectionMap from '$lib/components/DetectionMap.svelte';
 	import ControlPanel from '$lib/components/shell/ControlPanel.svelte';
-	import Header from '$lib/components/shell/Header.svelte';
+	import MapHeader from '$lib/components/shell/MapHeader.svelte';
 	import Legend from '$lib/components/shell/Legend.svelte';
 	import { selectLabels } from '$lib/map/labels';
 	import { formatShortDate } from '$lib/map/tooltip';
@@ -116,9 +116,10 @@
 	// A share link has done its job once the view is open. Clear the address bar so the
 	// page reads as the app rather than as one particular link. This waits for the
 	// arrival navigation to finish: `onMount` runs before the router has hydrated, and
-	// `replaceState` then throws inside SvelteKit.
-	afterNavigate(({ type }) => {
-		if (type === 'enter' && page.url.search) replaceState(resolve('/'), {});
+	// `replaceState` then throws inside SvelteKit. Arrival can also be a link from another
+	// page, such as a county in the detections table, not only a fresh load.
+	afterNavigate(() => {
+		if (page.url.search) replaceState(resolve('/'), {});
 	});
 
 	onMount(() => {
@@ -151,7 +152,7 @@
 
 <!-- The branding bar sits above this in the root layout; together they fill the viewport. -->
 <div class="flex h-[calc(100dvh-var(--brand-bar-h))] flex-col">
-	<Header diseases={data.diseases} {view} />
+	<MapHeader diseases={data.diseases} {view} />
 	<ControlPanel
 		{view}
 		labelTotal={labelSelection?.total ?? 0}
@@ -180,7 +181,7 @@
 				? 'bg-muted text-foreground'
 				: 'text-muted-foreground'}"
 			aria-pressed={mobileView === 'list'}
-			onclick={() => (mobileView = 'list')}>Detections</button
+			onclick={() => (mobileView = 'list')}>List</button
 		>
 	</div>
 

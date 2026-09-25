@@ -14,7 +14,8 @@ const ORIGIN = 'http://localhost:4173';
 
 test.describe('admin detection management', () => {
 	test('the full lifecycle, through the modal: create, appear publicly, edit, retract, restore', async ({
-		page
+		page,
+		browser
 	}) => {
 		await signInAs(page, 'admin');
 		const dialog = page.getByRole('dialog');
@@ -40,7 +41,7 @@ test.describe('admin detection management', () => {
 
 		// The modal closes over the same page, and the list refreshes behind it.
 		await expect(dialog).toHaveCount(0);
-		await expect(page).toHaveURL(/\/admin$/);
+		await expect(page).toHaveURL(/\/detections$/);
 		await expect(row()).toBeVisible();
 		// Free text is normalised on the way in: collapsed whitespace, sentence case.
 		await expect(row()).toContainText('Sweet corn');
@@ -51,7 +52,7 @@ test.describe('admin detection management', () => {
 		await expect(page.getByText('Created by the end-to-end test.')).toBeVisible();
 
 		// --- edit ---
-		await page.goto('/admin');
+		await page.goto('/detections');
 		await row().getByRole('link', { name: 'Edit' }).click();
 		await expect(dialog).toBeVisible();
 		await page.fill('#strain', 'US-24');
@@ -69,9 +70,14 @@ test.describe('admin detection management', () => {
 		// Gone from the public map.
 		await page.goto(`/?disease=late-blight&year=2024&county=${COUNTY_FIPS}`);
 		await expect(page.getByText('Created by the end-to-end test.')).toHaveCount(0);
+		// And from the public table, even when a visitor asks for retractions.
+		const visitor = await (await browser.newContext()).newPage();
+		await visitor.goto('/detections?retracted=1&year=2024');
+		await expect(visitor.locator('tr', { hasText: COUNTY_LABEL })).toHaveCount(0);
+		await visitor.context().close();
 
 		// --- restore ---
-		await page.goto('/admin?includeDeleted=1');
+		await page.goto('/detections?retracted=1');
 		await expect(row()).toContainText('Retracted');
 		await row().getByRole('link', { name: 'Edit' }).click();
 		await dialog.getByRole('button', { name: 'Restore' }).click();
@@ -97,7 +103,7 @@ test.describe('admin detection management', () => {
 		await confirm.getByRole('button', { name: 'Delete permanently' }).click();
 		await expect(page.getByRole('dialog')).toHaveCount(0);
 		await expect(row()).toHaveCount(0);
-		await page.goto('/admin?includeDeleted=1');
+		await page.goto('/detections?retracted=1');
 		await expect(row()).toHaveCount(0);
 	});
 
@@ -157,11 +163,11 @@ test.describe('admin detection management', () => {
 
 		await page.goBack();
 		await expect(prompt).toBeVisible();
-		await expect(page).toHaveURL(/\/admin$/);
+		await expect(page).toHaveURL(/\/detections$/);
 
 		await dialog.getByRole('button', { name: 'Discard' }).click();
 		await expect(dialog).toHaveCount(0);
-		await expect(page).toHaveURL(/\/admin$/);
+		await expect(page).toHaveURL(/\/detections$/);
 	});
 
 	test('a refused save stays in the modal with what was typed', async ({ page }) => {
@@ -275,24 +281,29 @@ test.describe('admin detection management', () => {
 		expect(years.slice(1)).toEqual([...years.slice(1)].sort().reverse());
 
 		await page.selectOption('#filter-year', '2026');
-		await expect(page).toHaveURL(/\/admin\?year=2026$/);
+		await expect(page).toHaveURL(/\/detections\?year=2026$/);
 		await expect(page.locator('tbody tr').first()).toContainText('2026');
 		await expect(reset).toBeVisible();
 
 		await page.selectOption('#filter-disease', { label: 'Late blight' });
-		await expect(page).toHaveURL(/diseaseId=\d+&year=2026/);
+		await expect(page).toHaveURL(/disease=late-blight&year=2026/);
 		await expect(page.locator('tbody tr', { hasText: 'Cucurbit downy mildew' })).toHaveCount(0);
 
 		await reset.click();
-		await expect(page).toHaveURL(/\/admin$/);
+		await expect(page).toHaveURL(/\/detections$/);
 		await expect(page.locator('#filter-year')).toHaveValue('');
 		await expect(reset).toHaveCount(0);
 	});
 
-	test('the old list URL redirects, keeping its filters', async ({ page }) => {
+	test('the old list URLs redirect, keeping their filters', async ({ page }) => {
 		await signInAs(page, 'admin');
 		await page.goto('/admin/incidents?year=2026');
-		await expect(page).toHaveURL(/\/admin\?year=2026$/);
+		await expect(page).toHaveURL(/\/detections\?year=2026$/);
+		// The old filters named a disease by ID and said "deleted"; the table uses the slug.
+		const res = await page.request.get('/admin?diseaseId=1&includeDeleted=1', {
+			maxRedirects: 0
+		});
+		expect(res.headers()['location']).toMatch(/^\/detections\?disease=[a-z-]+&retracted=1$/);
 	});
 
 	test('an admin can edit a detection from the public map', async ({ page }) => {

@@ -34,7 +34,7 @@ export const actions: Actions = {
 			const email = await resetPassword(params.token, password);
 			if (!email) return fail(410, { expired: true as const });
 			await signIn(email, password, authHeaders(event));
-			redirect(303, '/admin');
+			redirect(303, '/detections');
 		}
 
 		const { values, errors } = parseProfile(data);
@@ -44,6 +44,6 @@ export const actions: Actions = {
 		const email = await acceptInvite(params.token, values, password);
 		if (!email) return fail(410, { expired: true as const });
 		await signIn(email, password, authHeaders(event));
-		redirect(303, '/admin');
+		redirect(303, '/detections');
 	}
 };

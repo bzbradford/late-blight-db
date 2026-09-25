@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, desc, eq, exists, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, eq, exists, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { canDeleteIncident, canEditIncident, type Viewer } from '$lib/auth/roles';
 import { db } from '$lib/server/db';
 import { counties, diseases, incidents, user } from '$lib/server/db/schema';
@@ -63,42 +63,8 @@ function selectAdmin(conn: Tx | typeof db = db) {
 }
 
 /**
- * Admin listing. Unlike the public queries this can include retracted rows — an admin
- * needs to see what was retracted in order to restore it.
- */
-export async function listIncidents(filters: {
-	diseaseId?: number;
-	year?: number;
-	includeDeleted?: boolean;
-	/** A user ID: only detections that user entered. */
-	reportedBy?: string;
-}): Promise<AdminIncident[]> {
-	const where = [
-		filters.diseaseId ? eq(incidents.diseaseId, filters.diseaseId) : undefined,
-		filters.reportedBy ? eq(incidents.createdBy, filters.reportedBy) : undefined,
-		filters.year ? sql`extract(year from ${incidents.observedOn}) = ${filters.year}` : undefined,
-		filters.includeDeleted ? undefined : isNull(incidents.deletedAt)
-	].filter(Boolean);
-
-	return selectAdmin()
-		.where(where.length ? and(...where) : undefined)
-		.orderBy(desc(incidents.observedOn), desc(incidents.id));
-}
-
-/**
- * Every year with a detection, newest first, for the admin year filter. Retracted rows
- * count — the filter must be able to reach them — and so do all diseases, so the list
- * does not shift as the disease filter changes.
- */
-export async function listIncidentYears(): Promise<number[]> {
-	const year = sql<number>`extract(year from ${incidents.observedOn})::int`;
-	const rows = await db.selectDistinct({ year }).from(incidents).orderBy(desc(year));
-	return rows.map((r) => Number(r.year));
-}
-
-/**
  * Everyone who has entered at least one detection, retracted or not, for the admin
- * list's "Reported by" filter. Deactivated users stay: their detections still exist.
+ * table's "Reported by" filter. Deactivated users stay: their detections still exist.
  */
 export async function listReporters(): Promise<{ id: string; name: string }[]> {
 	return db

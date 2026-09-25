@@ -9,7 +9,7 @@
 <svelte:head><title>Add detection</title></svelte:head>
 
 <main class="mx-auto max-w-2xl px-4 py-8">
-	<a href={resolve('/admin')} class="text-sm text-muted-foreground hover:text-foreground"
+	<a href={resolve('/detections')} class="text-sm text-muted-foreground hover:text-foreground"
 		>← All detections</a
 	>
 	<h1 class="mt-3 mb-6 text-xl font-semibold tracking-tight">Add detection</h1>

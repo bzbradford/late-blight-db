@@ -19,7 +19,7 @@ function adminRows(page: Page, county: string) {
 }
 
 async function openAdmin2023(page: Page) {
-	await page.goto('/admin?year=2023');
+	await page.goto('/detections?year=2023');
 }
 
 // These tests write only to late blight 2023, in counties with no fixtures, so they
@@ -226,13 +226,13 @@ test.describe('single-entry duplicate warning', () => {
 
 		await add();
 		await page.getByRole('button', { name: 'Add detection' }).click();
-		await expect(page).toHaveURL(/\/admin$/);
+		await expect(page).toHaveURL(/\/detections$/);
 
 		await add();
 		await page.getByRole('button', { name: 'Add detection' }).click();
 		await expect(page.getByRole('alert')).toContainText('already exists');
 		await page.getByRole('button', { name: 'Add anyway' }).click();
-		await expect(page).toHaveURL(/\/admin$/);
+		await expect(page).toHaveURL(/\/detections$/);
 
 		await openAdmin2023(page);
 		await expect(adminRows(page, 'Hall, NE')).toHaveCount(2);

@@ -54,6 +54,6 @@ export const actions: Actions = {
 		}
 
 		await createIncident(values, viewerOf(locals.user));
-		redirect(303, '/admin');
+		redirect(303, '/detections');
 	}
 };
