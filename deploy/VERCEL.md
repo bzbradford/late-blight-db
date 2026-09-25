@@ -62,6 +62,14 @@ this says, search the dashboard for it by name.
    Generate the secret with
    `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
 
+   Create `DATABASE_URL`, `MIGRATION_DATABASE_URL` and `BETTER_AUTH_SECRET` as **Secret**,
+   not Config: the first two carry the database password. A Config variable can't be
+   switched to Secret reliably (the dashboard may fail with "Failed to verify the
+   project's public environment variable prefix"). Delete it and add it again as Secret,
+   or from the CLI, which prompts for the value so it stays out of shell history:
+   `pnpm dlx vercel env add DATABASE_URL production --visibility secret` (after
+   `vercel login` and `vercel link`). The rest can be Config.
+
    After you change a variable, redeploy: a deployment keeps the values it was built with.
 
 5. Deploy. The production build migrates and seeds the empty database (all 0000–0008
