@@ -44,6 +44,39 @@ test.describe('public detections table', () => {
 		);
 	});
 
+	test('State is a column that sorts, filters, and narrows the download', async ({ page }) => {
+		await page.goto('/detections?year=2026');
+		const state = page.locator('tbody tr td:nth-child(4)');
+
+		await page.getByRole('button', { name: 'State' }).click();
+		const names = (await state.allTextContents()).map((n) => n.trim());
+		expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
+		expect(names).toContain('Wisconsin');
+
+		// The filter lists states by name, and only those with detections.
+		const options = await page.locator('#filter-state option').allTextContents();
+		expect(options[0]).toBe('All states');
+		expect(options.slice(1)).toEqual([...options.slice(1)].sort((a, b) => a.localeCompare(b)));
+
+		await page.selectOption('#filter-state', { label: 'Wisconsin' });
+		await expect(page).toHaveURL(/\/detections\?year=2026&state=WI$/);
+		await expect(state.first()).toHaveText('Wisconsin');
+		expect(new Set((await state.allTextContents()).map((n) => n.trim()))).toEqual(
+			new Set(['Wisconsin'])
+		);
+
+		const download = page.getByRole('link', { name: 'Download CSV' });
+		await expect(download).toHaveAttribute(
+			'href',
+			'/detections.csv?disease=all&year=2026&state=WI'
+		);
+		const csv = await page.request.get((await download.getAttribute('href'))!);
+		expect(csv.headers()['content-disposition']).toContain('all-diseases-wi-2026.csv');
+		const lines = (await csv.text()).trim().split('\n').slice(1);
+		expect(lines.length).toBeGreaterThan(0);
+		for (const line of lines) expect(line.split(',')[3]).toBe('WI');
+	});
+
 	test('search filters the rows as you type, without reloading', async ({ page }) => {
 		await page.goto('/detections');
 		const rows = page.locator('tbody tr');
@@ -51,11 +84,11 @@ test.describe('public detections table', () => {
 		const search = page.getByRole('searchbox', { name: 'Search detections' });
 
 		await search.fill('dane potato');
-		await expect(rows.first()).toContainText('Dane, WI');
+		await expect(rows.first()).toContainText('Dane County');
 		const matched = await rows.count();
 		expect(matched).toBeLessThan(total);
 		for (const text of await rows.allTextContents()) {
-			expect(text).toMatch(/Dane, WI/);
+			expect(text).toMatch(/Dane County/);
 			expect(text).toMatch(/Potato/);
 		}
 		await expect(page.getByText(`${matched} of ${total} detections`)).toBeVisible();
@@ -70,15 +103,15 @@ test.describe('public detections table', () => {
 
 	test('a county links to the map, and Details shows the whole record', async ({ page }) => {
 		await page.goto('/detections?disease=late-blight&year=2026');
-		const row = page.locator('tbody tr', { hasText: 'Dane, WI' }).first();
+		const row = page.locator('tbody tr', { hasText: 'Dane County' }).first();
 
 		await row.getByRole('button', { name: /^Details/ }).click();
 		const dialog = page.getByRole('dialog');
-		await expect(dialog.getByRole('heading', { name: 'Dane, WI' })).toBeVisible();
-		await expect(dialog).toContainText('Late blight');
+		await expect(dialog.getByRole('heading', { name: 'Late blight' })).toBeVisible();
+		await expect(dialog).toContainText('Location Dane County, Wisconsin');
 		await page.keyboard.press('Escape');
 
-		await row.getByRole('link', { name: 'Dane, WI' }).click();
+		await row.getByRole('link', { name: 'Dane County' }).click();
 		// The map opens on that county, then clears the share parameters from the address.
 		await expect(page.getByText(/Dane, WI — \d+\s+detections?/)).toBeVisible();
 		await expect(page).toHaveURL(/\/$/);

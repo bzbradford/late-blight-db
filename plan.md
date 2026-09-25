@@ -854,6 +854,14 @@ Notes from implementation:
       (`$lib/search/text.ts`). `DataTable` takes `search` + `searchText`, so any table
       can have one.
 - Not wanted: paging or sort state in the URL (user's call, 2026-09-25).
+- [x] State column after County (full state name), sortable, searchable, and a State
+      filter (server-side `state=WI`, like disease and year; options are states with
+      detections). `/detections.csv` takes `state` too, and the download follows it.
+- [x] County column and the detail dialog use the full county name. Migration 0007 adds
+      `counties.full_name` (NAMELSAD), backfilled with the bare name until `pnpm seed`
+      loads the real one. Every deploy seeds right after migrating.
+- [x] Detail dialog is headed by the disease name; "Location: Dane County, Wisconsin"
+      is the first row of its list.
 
 ---
 
@@ -933,3 +941,5 @@ Append one line per working session: date, what moved, what's next.
   paging), shared `AppHeader` nav on every page, `/admin` → `/detections`. check/lint clean;
   unit and e2e green; screenshot-checked at 390/768/1024/1280. Not yet committed.
 - 2026-09-25 — Committed 7A (`ee67786`). Added the table search box (client-side, instant).
+- 2026-09-25 — Table: State column and filter (CSV follows), full county names
+  (`counties.full_name`, migration 0007). Detail dialog headed by disease, with Location row.

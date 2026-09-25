@@ -205,7 +205,11 @@ APIs. It runs behind whatever reverse proxy the extension server provides.
   `src/lib/server/import.ts` runs it against the database. An import never inserts a
   possible duplicate without an explicit "keep both".
 - `static/geo/**` — generated TopoJSON; never hand-edit. Regenerate with `pnpm build:geo`.
-- `scripts/build-geo.ts` — the only thing that writes `static/geo/` and `scripts/data/counties.csv`
+- `scripts/build-geo.ts` — the only thing that writes `static/geo/` and `scripts/data/counties.csv`.
+  Counties carry two names: `name` is Census NAME ("Dane"), which county search and CSV
+  import match on and short labels use ("Dane, WI"); `full_name` is NAMELSAD ("Dane
+  County", "Richmond city"), for anywhere a county is named in full. Never build a full
+  name by appending "County": Virginia has both a Richmond County and a Richmond city.
 - `scripts/seed.ts` — reference data, safe in production; `scripts/seed-dev.ts` truncates incidents
 
 ## What to avoid

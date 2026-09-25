@@ -40,7 +40,13 @@ export const counties = pgTable(
 	'counties',
 	{
 		fips: char('fips', { length: 5 }).primaryKey(),
+		/** Census NAME ("Dane"): what county search and CSV import match on. */
 		name: text('name').notNull(),
+		/**
+		 * Census NAMELSAD ("Dane County", "Orleans Parish", "Richmond city"), for display.
+		 * The bare name can't tell a Virginia independent city from the county beside it.
+		 */
+		fullName: text('full_name').notNull(),
 		stateFips: char('state_fips', { length: 2 }).notNull(),
 		stateUsps: char('state_usps', { length: 2 }).notNull(),
 		stateName: text('state_name').notNull(),

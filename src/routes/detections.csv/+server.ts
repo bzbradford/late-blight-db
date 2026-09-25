@@ -1,13 +1,13 @@
 import { EXPORT_COLUMNS, type ExportRecord } from '$lib/csv/columns';
 import { toCsv } from '$lib/csv/io';
-import { getDetectionsForExport } from '$lib/server/queries/detections';
+import { getDetectionsForExport, parseState } from '$lib/server/queries/detections';
 import { listDiseases } from '$lib/server/queries/diseases';
 import { formatReporter } from '$lib/validation/account';
 import type { RequestHandler } from './$types';
 
 /**
  * Public CSV download: `/detections.csv?disease=late-blight&year=2026` (`disease=all` and
- * `year=all` widen it).
+ * `year=all` widen it; `state=WI` narrows it to one state).
  *
  * The import template's columns plus `reported_by`, which the importer ignores, so a
  * download can be edited and imported again, matching on `id`. Everything in it is already public on the map.
@@ -21,7 +21,9 @@ export const GET: RequestHandler = async ({ url }) => {
 	const yearParam = url.searchParams.get('year');
 	const year = yearParam === 'all' ? null : Number(yearParam) || new Date().getFullYear();
 
-	const rows = await getDetectionsForExport(disease?.slug ?? null, year);
+	const state = parseState(url.searchParams.get('state'));
+
+	const rows = await getDetectionsForExport(disease?.slug ?? null, year, state);
 	const records: ExportRecord[] = rows.map((r) => ({
 		id: r.publicId,
 		disease: r.diseaseSlug,
@@ -40,10 +42,15 @@ export const GET: RequestHandler = async ({ url }) => {
 			: ''
 	}));
 
+	// late-blight-wi-2026, all-diseases-all-years, …
+	const fileName = [disease?.slug ?? 'all-diseases', state?.toLowerCase(), year ?? 'all-years']
+		.filter(Boolean)
+		.join('-');
+
 	return new Response(toCsv(records, EXPORT_COLUMNS), {
 		headers: {
 			'content-type': 'text/csv; charset=utf-8',
-			'content-disposition': `attachment; filename="${disease?.slug ?? 'all-diseases'}-${year ?? 'all-years'}.csv"`,
+			'content-disposition': `attachment; filename="${fileName}.csv"`,
 			// Detections change as admins record them; always serve the current set.
 			'cache-control': 'no-store'
 		}

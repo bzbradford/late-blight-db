@@ -62,7 +62,7 @@ test.describe('reporter permissions', () => {
 		// `seed:dev` restarts the identity, so these IDs are stable.
 		await page.goto('/detections?year=2026');
 		const own = page
-			.locator('tbody tr', { hasText: 'Dane, WI' })
+			.locator('tbody tr', { hasText: 'Dane County' })
 			.filter({ hasText: 'E2E Reporter' });
 		await expect(own.first().getByRole('link', { name: 'Edit' })).toBeVisible();
 		const others = page.locator('tbody tr', { hasText: 'E2E Admin' });

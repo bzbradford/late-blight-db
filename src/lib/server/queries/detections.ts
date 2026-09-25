@@ -11,8 +11,12 @@ export type Detection = {
 	/** The ID shown to the public and used in CSV files. `id` is internal. */
 	publicId: string;
 	countyFips: string;
+	/** The bare name, "Dane": short labels such as "Dane, WI". */
 	countyName: string;
+	/** "Dane County", "Richmond city": wherever the county is named in full. */
+	countyFullName: string;
 	stateUsps: string;
+	stateName: string;
 	observedOn: string;
 	reportedOn: string;
 	crop: string | null;
@@ -61,7 +65,9 @@ function selectDetections() {
 			diseaseName: diseases.name,
 			countyFips: incidents.countyFips,
 			countyName: counties.name,
+			countyFullName: counties.fullName,
 			stateUsps: counties.stateUsps,
+			stateName: counties.stateName,
 			observedOn: incidents.observedOn,
 			reportedOn: incidents.reportedOn,
 			crop: incidents.crop,
@@ -90,7 +96,9 @@ function toDetection(row: SelectedRow, viewer: Viewer | null): Detection {
 		publicId: row.publicId,
 		countyFips: row.countyFips,
 		countyName: row.countyName,
+		countyFullName: row.countyFullName,
 		stateUsps: row.stateUsps,
+		stateName: row.stateName,
 		observedOn: row.observedOn,
 		reportedOn: row.reportedOn,
 		crop: row.crop,
@@ -129,6 +137,8 @@ export type DetectionRow = Detection & {
 export type DetectionFilters = {
 	diseaseSlug?: string;
 	year?: number;
+	/** A two-letter USPS code, "WI". */
+	stateUsps?: string;
 	/** Signed-in viewers only; ignored for the public. */
 	includeRetracted?: boolean;
 	/** A user ID. Signed-in viewers only; ignored for the public. */
@@ -152,6 +162,7 @@ export async function listDetectionRows(
 				filters.year
 					? sql`extract(year from ${incidents.observedOn}) = ${filters.year}`
 					: undefined,
+				filters.stateUsps ? eq(counties.stateUsps, filters.stateUsps) : undefined,
 				signedIn && filters.includeRetracted ? undefined : isNull(incidents.deletedAt),
 				signedIn && filters.reportedBy ? eq(incidents.createdBy, filters.reportedBy) : undefined
 			)
@@ -179,6 +190,28 @@ export async function listDetectionYears(includeRetracted: boolean): Promise<num
 		.where(includeRetracted ? undefined : isNull(incidents.deletedAt))
 		.orderBy(desc(year));
 	return rows.map((r) => Number(r.year));
+}
+
+export type StateOption = { usps: string; name: string };
+
+/** A `state` query parameter as a USPS code ("wi" → "WI"), or null for anything else. */
+export function parseState(param: string | null): string | null {
+	const usps = param?.trim().toUpperCase();
+	return usps && /^[A-Z]{2}$/.test(usps) ? usps : null;
+}
+
+/**
+ * Every state with a detection of any disease, by name, for the table's state filter.
+ * Like the years, it ignores the other filters, so the list does not shrink as they
+ * change, and retracted rows count only for viewers who can see them.
+ */
+export async function listDetectionStates(includeRetracted: boolean): Promise<StateOption[]> {
+	return db
+		.selectDistinct({ usps: counties.stateUsps, name: counties.stateName })
+		.from(incidents)
+		.innerJoin(counties, eq(counties.fips, incidents.countyFips))
+		.where(includeRetracted ? undefined : isNull(incidents.deletedAt))
+		.orderBy(counties.stateName);
 }
 
 /**
@@ -231,12 +264,14 @@ export type ExportRow = {
 };
 
 /**
- * Rows for the public CSV download: one disease or all (`null`), one year or all of them.
+ * Rows for the public CSV download: one disease or all (`null`), one year or all of them,
+ * optionally one state.
  * Retracted detections are excluded, exactly as on the map.
  */
 export async function getDetectionsForExport(
 	diseaseSlug: string | null,
-	year: number | null
+	year: number | null,
+	stateUsps: string | null = null
 ): Promise<ExportRow[]> {
 	const rows = await db
 		.select({
@@ -264,7 +299,8 @@ export async function getDetectionsForExport(
 			and(
 				diseaseSlug === null ? undefined : eq(diseases.slug, diseaseSlug),
 				isNull(incidents.deletedAt),
-				year === null ? undefined : sql`extract(year from ${incidents.observedOn}) = ${year}`
+				year === null ? undefined : sql`extract(year from ${incidents.observedOn}) = ${year}`,
+				stateUsps === null ? undefined : eq(counties.stateUsps, stateUsps)
 			)
 		)
 		.orderBy(desc(incidents.observedOn), desc(incidents.id));

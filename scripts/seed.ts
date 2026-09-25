@@ -30,7 +30,16 @@ const DISEASES = [
 	}
 ];
 
-const COUNTY_COLUMNS = ['fips', 'name', 'state_fips', 'state_usps', 'state_name', 'lon', 'lat'];
+const COUNTY_COLUMNS = [
+	'fips',
+	'name',
+	'full_name',
+	'state_fips',
+	'state_usps',
+	'state_name',
+	'lon',
+	'lat'
+];
 
 function parseCounties(path: string) {
 	const lines = readFileSync(path, 'utf8').trim().split('\n');
@@ -42,16 +51,19 @@ function parseCounties(path: string) {
 		const f = line.split(',');
 		// The generator emits no quoted fields; assert rather than silently mis-parse.
 		if (f.length !== COUNTY_COLUMNS.length) {
-			throw new Error(`counties.csv line ${i + 2} has ${f.length} fields, expected 7`);
+			throw new Error(
+				`counties.csv line ${i + 2} has ${f.length} fields, expected ${COUNTY_COLUMNS.length}`
+			);
 		}
 		return {
 			fips: f[0],
 			name: f[1],
-			stateFips: f[2],
-			stateUsps: f[3],
-			stateName: f[4],
-			lon: Number(f[5]),
-			lat: Number(f[6])
+			fullName: f[2],
+			stateFips: f[3],
+			stateUsps: f[4],
+			stateName: f[5],
+			lon: Number(f[6]),
+			lat: Number(f[7])
 		};
 	});
 }
@@ -82,6 +94,7 @@ try {
 				target: counties.fips,
 				set: {
 					name: sql`excluded.name`,
+					fullName: sql`excluded.full_name`,
 					stateFips: sql`excluded.state_fips`,
 					stateUsps: sql`excluded.state_usps`,
 					stateName: sql`excluded.state_name`,

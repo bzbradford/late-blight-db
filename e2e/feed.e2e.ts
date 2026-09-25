@@ -95,7 +95,9 @@ test('the detail view shows the whole record, with no edit button for the public
 	await card.getByRole('button', { name: /^Details:/ }).click();
 
 	const dialog = page.getByRole('dialog');
-	await expect(dialog.getByRole('heading', { name: 'Dane, WI' })).toBeVisible();
+	// Headed by the disease; the county is named in full in the list.
+	await expect(dialog.getByRole('heading', { name: 'Late blight' })).toBeVisible();
+	await expect(dialog).toContainText('Location Dane County, Wisconsin');
 	await expect(dialog).toContainText('Observed');
 	await expect(dialog).toContainText('(3 days ago)');
 	await expect(dialog).toContainText('ID');

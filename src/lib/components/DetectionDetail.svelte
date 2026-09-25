@@ -25,6 +25,7 @@
 		detection
 			? (
 					[
+						['Location', `${detection.countyFullName}, ${detection.stateName}`],
 						[
 							'Observed',
 							`${formatShortDate(detection.observedOn)} (${timeAgo(detection.observedOn)})`
@@ -57,8 +58,7 @@
 	{#if detection}
 		<Dialog.Content class="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
 			<Dialog.Header>
-				<Dialog.Title class="text-lg">{detection.countyName}, {detection.stateUsps}</Dialog.Title>
-				<Dialog.Description>{diseaseName}</Dialog.Description>
+				<Dialog.Title class="text-lg">{diseaseName}</Dialog.Title>
 			</Dialog.Header>
 
 			<dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">

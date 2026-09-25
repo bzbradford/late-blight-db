@@ -95,7 +95,8 @@ mapshaper([
 	'format=topojson'
 ]);
 
-// County reference table. innerX/innerY give a point guaranteed to fall inside the
+// County reference table. `name` is the bare NAME that search and CSV import match on;
+// `full_name` is NAMELSAD, for display ("Dane County, Wisconsin"). innerX/innerY give a point guaranteed to fall inside the
 // polygon — unlike a true centroid, which lands outside horseshoe-shaped counties and
 // would send the map's flyTo into a neighbouring county.
 mapshaper([
@@ -103,10 +104,10 @@ mapshaper([
 	'-filter',
 	KEEP_STATES,
 	'-each',
-	'fips=GEOID, name=NAME, state_fips=STATEFP, state_usps=STUSPS, state_name=STATE_NAME, ' +
-		'lon=+this.innerX.toFixed(5), lat=+this.innerY.toFixed(5)',
+	'fips=GEOID, name=NAME, full_name=NAMELSAD, state_fips=STATEFP, state_usps=STUSPS, ' +
+		'state_name=STATE_NAME, lon=+this.innerX.toFixed(5), lat=+this.innerY.toFixed(5)',
 	'-filter-fields',
-	'fips,name,state_fips,state_usps,state_name,lon,lat',
+	'fips,name,full_name,state_fips,state_usps,state_name,lon,lat',
 	'-sort',
 	'fips',
 	'-o',

@@ -31,9 +31,17 @@
 			: data.years
 	);
 
+	/** Likewise a state typed into the URL that has no detections. */
+	let stateOptions = $derived(
+		data.filters.stateUsps && !data.states.some((s) => s.usps === data.filters.stateUsps)
+			? [...data.states, { usps: data.filters.stateUsps, name: data.filters.stateUsps }]
+			: data.states
+	);
+
 	let filtered = $derived(
 		data.filters.diseaseSlug !== undefined ||
 			data.filters.year !== undefined ||
+			data.filters.stateUsps !== undefined ||
 			data.filters.reportedBy !== undefined ||
 			Boolean(data.filters.includeRetracted)
 	);
@@ -45,11 +53,12 @@
 			: []
 	);
 
-	/** The CSV holds exactly the public rows for this disease and year. */
+	/** The CSV holds exactly the public rows for this disease, year, and state. */
 	let downloadHref = $derived(
 		`${resolve('/detections.csv')}?${new URLSearchParams({
 			disease: data.filters.diseaseSlug ?? 'all',
-			year: data.filters.year ? String(data.filters.year) : 'all'
+			year: data.filters.year ? String(data.filters.year) : 'all',
+			...(data.filters.stateUsps ? { state: data.filters.stateUsps } : {})
 		})}`
 	);
 
@@ -149,6 +158,22 @@
 				<option value="" selected={data.filters.year === undefined}>All years</option>
 				{#each yearOptions as year (year)}
 					<option value={year} selected={data.filters.year === year}>{year}</option>
+				{/each}
+			</select>
+		</div>
+
+		<div class="space-y-1">
+			<label for="filter-state" class="text-xs text-muted-foreground">State</label>
+			<select
+				id="filter-state"
+				name="state"
+				class="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+			>
+				<option value="" selected={data.filters.stateUsps === undefined}>All states</option>
+				{#each stateOptions as state (state.usps)}
+					<option value={state.usps} selected={data.filters.stateUsps === state.usps}>
+						{state.name}
+					</option>
 				{/each}
 			</select>
 		</div>

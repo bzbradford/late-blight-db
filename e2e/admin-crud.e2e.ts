@@ -10,6 +10,9 @@ async function pickCounty(page: Page, query: string) {
 /** A county with no seeded detections, so assertions cannot collide with fixtures. */
 const COUNTY_FIPS = '19153'; // Polk, IA
 const COUNTY_LABEL = 'Polk, IA';
+/** The same county as the detections table shows it: full name, state in its own column. */
+const tableRow = (page: Page) =>
+	page.locator('tbody tr', { hasText: 'Polk County' }).filter({ hasText: 'Iowa' });
 const ORIGIN = 'http://localhost:4173';
 
 test.describe('admin detection management', () => {
@@ -19,7 +22,7 @@ test.describe('admin detection management', () => {
 	}) => {
 		await signInAs(page, 'admin');
 		const dialog = page.getByRole('dialog');
-		const row = () => page.locator('tr', { hasText: COUNTY_LABEL });
+		const row = () => tableRow(page);
 
 		// --- create ---
 		await page.getByRole('link', { name: 'Add detection' }).click();
@@ -73,7 +76,7 @@ test.describe('admin detection management', () => {
 		// And from the public table, even when a visitor asks for retractions.
 		const visitor = await (await browser.newContext()).newPage();
 		await visitor.goto('/detections?retracted=1&year=2024');
-		await expect(visitor.locator('tr', { hasText: COUNTY_LABEL })).toHaveCount(0);
+		await expect(tableRow(visitor)).toHaveCount(0);
 		await visitor.context().close();
 
 		// --- restore ---

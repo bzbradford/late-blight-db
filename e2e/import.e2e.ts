@@ -15,7 +15,11 @@ async function upload(page: Page, name: string, rows: string[]) {
 
 /** Rows in the admin list for one county in late blight 2023, which no fixture touches. */
 function adminRows(page: Page, county: string) {
-	return page.locator('tbody tr', { hasText: county });
+	// The table names the county in full and the state in its own column.
+	const [name, usps] = county.split(', ');
+	const state = { IA: 'Iowa', NE: 'Nebraska' }[usps];
+	if (!state) throw new Error(`adminRows: add ${usps} to the state names`);
+	return page.locator('tbody tr', { hasText: `${name} County` }).filter({ hasText: state });
 }
 
 async function openAdmin2023(page: Page) {

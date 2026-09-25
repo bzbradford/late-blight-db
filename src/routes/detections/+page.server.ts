@@ -2,7 +2,9 @@ import { viewerOf } from '$lib/auth/roles';
 import { listReporters } from '$lib/server/queries/admin';
 import {
 	listDetectionRows,
+	listDetectionStates,
 	listDetectionYears,
+	parseState,
 	type DetectionFilters
 } from '$lib/server/queries/detections';
 import type { PageServerLoad } from './$types';
@@ -20,15 +22,17 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	const filters: DetectionFilters = {
 		diseaseSlug: params.get('disease') || undefined,
 		year: Number(params.get('year')) || undefined,
+		stateUsps: parseState(params.get('state')) ?? undefined,
 		includeRetracted: viewer ? params.get('retracted') === '1' : undefined,
 		reportedBy: viewer ? params.get('reportedBy') || undefined : undefined
 	};
 
-	const [years, reporters, detections] = await Promise.all([
+	const [years, states, reporters, detections] = await Promise.all([
 		listDetectionYears(viewer !== null),
+		listDetectionStates(viewer !== null),
 		viewer ? listReporters() : Promise.resolve([]),
 		listDetectionRows(filters, viewer)
 	]);
 
-	return { years, reporters, detections, viewerId: viewer?.id ?? null, filters };
+	return { years, states, reporters, detections, viewerId: viewer?.id ?? null, filters };
 };

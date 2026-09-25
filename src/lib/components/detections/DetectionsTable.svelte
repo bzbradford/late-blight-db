@@ -28,7 +28,10 @@
 			d.publicId,
 			d.observedOn,
 			formatShortDate(d.observedOn),
+			d.countyFullName,
+			// "dane, wi" finds a row as well as "dane county wisconsin" does.
 			`${d.countyName}, ${d.stateUsps}`,
+			d.stateName,
 			d.diseaseName,
 			d.crop,
 			d.operationType,
@@ -70,10 +73,11 @@
 		},
 		{
 			id: 'county',
-			accessorFn: (d) => `${d.countyName}, ${d.stateUsps}`,
+			accessorKey: 'countyFullName',
 			header: 'County',
 			cell: ({ row }) => renderSnippet(countyCell, row.original)
 		},
+		{ id: 'state', accessorKey: 'stateName', header: 'State' },
 		{ id: 'disease', accessorKey: 'diseaseName', header: 'Disease' },
 		{
 			id: 'crop',
@@ -124,7 +128,7 @@
 	<!-- Opening a map link from a table is a request for the map, so these are plain links. -->
 	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- the path is resolved -->
 	<a href={mapHref(d)} class="underline-offset-4 hover:underline" title="Show on the map"
-		>{d.countyName}, {d.stateUsps}</a
+		>{d.countyFullName}</a
 	>
 	{#if d.retracted}
 		<span class="ml-1 rounded bg-muted px-1.5 py-0.5 text-xs">Retracted</span>

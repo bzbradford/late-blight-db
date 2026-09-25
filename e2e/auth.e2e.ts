@@ -63,6 +63,8 @@ test.describe('admin authentication', () => {
 		]);
 
 		await page.getByRole('button', { name: 'Sign out' }).click();
+		// Already on `/`, so the URL can't show that sign-out finished; the bar can.
+		await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
 		await expect(page).toHaveURL(/\/$/);
 
 		await page.goto('/admin');
