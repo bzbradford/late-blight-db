@@ -13,6 +13,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { createSvelteTable, FlexRender } from '$lib/components/ui/data-table';
 	import * as Table from '$lib/components/ui/table';
+	import { matchesTerms, normalizeSearch, searchTerms } from '$lib/search/text';
 
 	type Props = {
 		data: TData[];
@@ -27,8 +28,12 @@
 		/** What one row is called in the footer ("12 detections"). */
 		noun?: [singular: string, plural: string];
 		pageSizes?: number[];
-		/** Shown when `data` is empty. */
+		/** Shown when no row is left to show. */
 		emptyMessage?: string;
+		/** What the search box holds. Rows whose `searchText` has every word stay. */
+		search?: string;
+		/** The text a row is searched by. Without it, `search` does nothing. */
+		searchText?: (row: TData) => string;
 	};
 
 	let {
@@ -40,8 +45,21 @@
 		rowClass,
 		noun = ['row', 'rows'],
 		pageSizes = [25, 50, 100],
-		emptyMessage = 'No results.'
+		emptyMessage = 'No results.',
+		search = '',
+		searchText
 	}: Props = $props();
+
+	/** Each row's search text, normalised once per load rather than once per keystroke. */
+	let searchIndex = $derived(searchText ? data.map((row) => normalizeSearch(searchText(row))) : []);
+
+	/** The rows the search leaves. TanStack sorts and pages only these. */
+	let rows = $derived.by(() => {
+		const terms = searchTerms(search);
+		if (!searchText || terms.length === 0) return data;
+		return data.filter((_, i) => matchesTerms(searchIndex[i], terms));
+	});
+	let searching = $derived(rows !== data);
 
 	// The initial sort is a starting point; after that the viewer's clicks own it.
 	// svelte-ignore state_referenced_locally
@@ -55,13 +73,13 @@
 		pageSize: pagination.pageSize,
 		pageIndex: Math.min(
 			pagination.pageIndex,
-			Math.max(0, Math.ceil(data.length / pagination.pageSize) - 1)
+			Math.max(0, Math.ceil(rows.length / pagination.pageSize) - 1)
 		)
 	});
 
 	const table = createSvelteTable({
 		get data() {
-			return data;
+			return rows;
 		},
 		get columns() {
 			return columns;
@@ -92,12 +110,15 @@
 	});
 
 	let first = $derived(pageState.pageIndex * pageState.pageSize + 1);
-	let last = $derived(Math.min(data.length, first + pageState.pageSize - 1));
-	let summary = $derived(
-		data.length <= pageState.pageSize
-			? `${data.length} ${data.length === 1 ? noun[0] : noun[1]}`
-			: `${first}–${last} of ${data.length} ${noun[1]}`
-	);
+	let last = $derived(Math.min(rows.length, first + pageState.pageSize - 1));
+	let summary = $derived.by(() => {
+		const all = `${data.length} ${data.length === 1 ? noun[0] : noun[1]}`;
+		if (!searching) {
+			return rows.length <= pageState.pageSize ? all : `${first}–${last} of ${all}`;
+		}
+		if (rows.length <= pageState.pageSize) return `${rows.length} of ${all}`;
+		return `${first}–${last} of ${rows.length} matching, of ${all}`;
+	});
 
 	function ariaSort(direction: false | 'asc' | 'desc') {
 		if (direction === 'asc') return 'ascending';
@@ -169,7 +190,7 @@
 <div class="flex flex-wrap items-center gap-x-6 gap-y-2 border-t pt-3 text-sm">
 	<p class="mr-auto text-muted-foreground" aria-live="polite">{summary}</p>
 
-	{#if data.length > pageSizes[0]}
+	{#if rows.length > pageSizes[0]}
 		<label class="flex items-center gap-2 text-muted-foreground">
 			Rows per page
 			<select

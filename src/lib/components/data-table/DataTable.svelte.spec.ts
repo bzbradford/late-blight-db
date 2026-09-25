@@ -17,12 +17,14 @@ const columns: ColumnDef<Row>[] = [
 	{ accessorKey: 'name', header: 'Name' }
 ];
 
-function renderTable(data = rows) {
+function renderTable(data = rows, search = '') {
 	return render(DataTable<Row>, {
 		data,
 		columns,
 		getRowId: (r) => String(r.id),
-		noun: ['thing', 'things']
+		noun: ['thing', 'things'],
+		search,
+		searchText: (r) => `${r.name} ${r.id % 2 ? 'odd' : 'even'}`
 	});
 }
 
@@ -85,5 +87,25 @@ describe('DataTable', () => {
 		await expect.element(page.getByText('1 thing')).toBeInTheDocument();
 		expect(page.getByRole('button', { name: 'Next' }).query()).toBeNull();
 		expect(page.getByRole('combobox', { name: 'Rows per page' }).query()).toBeNull();
+	});
+
+	it('keeps only rows matching every searched word', async () => {
+		// Name 01 is row 60, which is even: both words must match.
+		renderTable(rows, 'even 01');
+		await expect.element(page.getByText('1 of 60 things')).toBeInTheDocument();
+		expect(firstColumn()).toEqual(['60']);
+		expect(page.getByRole('button', { name: 'Next' }).query()).toBeNull();
+	});
+
+	it('says so when nothing matches', async () => {
+		renderTable(rows, 'odd 01');
+		await expect.element(page.getByText('No results.')).toBeInTheDocument();
+		await expect.element(page.getByText('0 of 60 things')).toBeInTheDocument();
+	});
+
+	it('pages the matches when there are more than fit', async () => {
+		renderTable(rows, 'odd');
+		await expect.element(page.getByText('1–25 of 30 matching, of 60 things')).toBeInTheDocument();
+		await expect.element(page.getByText('Page 1 of 2')).toBeInTheDocument();
 	});
 });

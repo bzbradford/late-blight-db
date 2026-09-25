@@ -2,6 +2,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import DownloadIcon from '@lucide/svelte/icons/download';
+	import SearchIcon from '@lucide/svelte/icons/search';
 	import IncidentDialog from '$lib/components/admin/IncidentDialog.svelte';
 	import DetectionDetail from '$lib/components/DetectionDetail.svelte';
 	import DetectionsTable from '$lib/components/detections/DetectionsTable.svelte';
@@ -16,6 +17,9 @@
 	const editor = new IncidentEditor();
 
 	let pagination = $state({ pageIndex: 0, pageSize: 25 });
+
+	/** Filters the loaded rows as you type; unlike the filters above, it never reloads. */
+	let search = $state('');
 
 	/** The detection open in the detail dialog. */
 	let detail = $state<DetectionRow | null>(null);
@@ -189,10 +193,27 @@
 		{/if}
 	</form>
 
-	<div class="mt-6">
+	<!-- Outside the filter form: typing here must not reload the page. -->
+	<div class="relative mt-6 max-w-sm">
+		<SearchIcon
+			class="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+			aria-hidden="true"
+		/>
+		<input
+			type="search"
+			bind:value={search}
+			oninput={() => (pagination = { ...pagination, pageIndex: 0 })}
+			aria-label="Search detections"
+			placeholder="Search county, crop, strain, reporter…"
+			class="w-full rounded-md border border-input bg-background py-1.5 pr-2 pl-8 text-sm"
+		/>
+	</div>
+
+	<div class="mt-4">
 		<DetectionsTable
 			detections={data.detections}
 			bind:pagination
+			{search}
 			onDetails={(d) => (detail = d)}
 			onEdit={openInModal}
 		/>

@@ -9,13 +9,36 @@
 	type Props = {
 		detections: DetectionRow[];
 		pagination: PaginationState;
+		/** The search box's text; see `searchText` for what it looks through. */
+		search?: string;
 		/** Show everything recorded about a detection. */
 		onDetails: (detection: DetectionRow) => void;
 		/** Only offered when `detection.canEdit`. Receives the click so modified clicks still reach the page. */
 		onEdit: (event: MouseEvent, href: string) => void;
 	};
 
-	let { detections, pagination = $bindable(), onDetails, onEdit }: Props = $props();
+	let { detections, pagination = $bindable(), search = '', onDetails, onEdit }: Props = $props();
+
+	/**
+	 * Everything a visitor might search by, including what only Details shows (source,
+	 * comments) and the date as displayed ("Sep 21") as well as stored ("2026-09-21").
+	 */
+	function searchText(d: DetectionRow) {
+		return [
+			d.publicId,
+			d.observedOn,
+			formatShortDate(d.observedOn),
+			`${d.countyName}, ${d.stateUsps}`,
+			d.diseaseName,
+			d.crop,
+			d.operationType,
+			d.strain,
+			d.source,
+			d.comments,
+			d.reportedBy?.name,
+			d.reportedBy?.affiliation
+		].join(' · ');
+	}
 
 	/** The public map, opened on this detection's disease, year, and county — a Share link. */
 	function mapHref(d: DetectionRow) {
@@ -152,5 +175,9 @@
 	initialSorting={[{ id: 'observedOn', desc: true }]}
 	rowClass={(d) => (d.retracted ? 'text-muted-foreground' : '')}
 	noun={['detection', 'detections']}
-	emptyMessage="No detections match these filters."
+	{search}
+	{searchText}
+	emptyMessage={search.trim()
+		? `No detections match “${search.trim()}”.`
+		: 'No detections match these filters.'}
 />

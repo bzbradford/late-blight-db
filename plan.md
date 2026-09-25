@@ -848,8 +848,12 @@ Notes from implementation:
 - [x] Tests: `DataTable.svelte.spec.ts` (paging, sorting, page size), `e2e/detections.e2e.ts`
       (public vs signed-in, sort, download link, map link), retracted rows hidden from a
       visitor asking `?retracted=1`, `/admin` filter mapping. Existing e2e updated.
-- Later, if wanted: a text search over the table (TanStack global filter), and paging
-  state in the URL.
+- [x] Search box: filters the loaded rows as you type, with no reload and nothing in
+      the URL. Every word must appear somewhere in the row (ID, dates, county, disease,
+      crop, operation, strain, source, comments, reporter), ignoring case and accents
+      (`$lib/search/text.ts`). `DataTable` takes `search` + `searchText`, so any table
+      can have one.
+- Not wanted: paging or sort state in the URL (user's call, 2026-09-25).
 
 ---
 
@@ -928,3 +932,4 @@ Append one line per working session: date, what moved, what's next.
 - 2026-09-25 — Track 7A: public `/detections` table (shadcn DataTable, client-side sort and
   paging), shared `AppHeader` nav on every page, `/admin` → `/detections`. check/lint clean;
   unit and e2e green; screenshot-checked at 390/768/1024/1280. Not yet committed.
+- 2026-09-25 — Committed 7A (`ee67786`). Added the table search box (client-side, instant).

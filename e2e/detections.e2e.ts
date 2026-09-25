@@ -44,6 +44,30 @@ test.describe('public detections table', () => {
 		);
 	});
 
+	test('search filters the rows as you type, without reloading', async ({ page }) => {
+		await page.goto('/detections');
+		const rows = page.locator('tbody tr');
+		const total = await rows.count();
+		const search = page.getByRole('searchbox', { name: 'Search detections' });
+
+		await search.fill('dane potato');
+		await expect(rows.first()).toContainText('Dane, WI');
+		const matched = await rows.count();
+		expect(matched).toBeLessThan(total);
+		for (const text of await rows.allTextContents()) {
+			expect(text).toMatch(/Dane, WI/);
+			expect(text).toMatch(/Potato/);
+		}
+		await expect(page.getByText(`${matched} of ${total} detections`)).toBeVisible();
+		await expect(page).toHaveURL(/\/detections$/);
+
+		await search.fill('no such thing anywhere');
+		await expect(page.getByText('No detections match “no such thing anywhere”.')).toBeVisible();
+
+		await search.fill('');
+		await expect(rows).toHaveCount(total);
+	});
+
 	test('a county links to the map, and Details shows the whole record', async ({ page }) => {
 		await page.goto('/detections?disease=late-blight&year=2026');
 		const row = page.locator('tbody tr', { hasText: 'Dane, WI' }).first();
