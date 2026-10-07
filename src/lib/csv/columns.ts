@@ -4,7 +4,13 @@
  *
  * `id` is the public ID (never the internal serial key). On import it is optional: with
  * it, a row updates that detection; without it, rows match on disease + county + date.
- * The county is given by `county_fips`, or by `state` + `county` when FIPS is blank.
+ * The county is given by `county_fips`, or by `state` + `county` when FIPS is blank, or by
+ * `latitude` + `longitude` when both are blank.
+ *
+ * `latitude` and `longitude` are private (see `incident_locations`): the template and the
+ * importer have them, the admin download fills them, the public download leaves them out.
+ * Blank coordinates on import leave stored ones alone, so re-importing a public download
+ * can't wipe them.
  */
 export const CSV_COLUMNS = [
 	'id',
@@ -12,6 +18,8 @@ export const CSV_COLUMNS = [
 	'county_fips',
 	'state',
 	'county',
+	'latitude',
+	'longitude',
 	'observed_on',
 	'reported_on',
 	'crop',
@@ -25,12 +33,17 @@ export type CsvColumn = (typeof CSV_COLUMNS)[number];
 export type CsvRecord = Record<CsvColumn, string>;
 
 /**
- * The public download adds who entered each row. Export-only: the importer ignores
- * unknown columns, so a downloaded file still re-imports, and an import is always
- * credited to the admin running it.
+ * The downloads add who entered each row. Export-only: the importer ignores unknown
+ * columns, so a downloaded file still re-imports, and an import is always credited to
+ * the admin running it.
  */
 export const EXPORT_COLUMNS = [...CSV_COLUMNS, 'reported_by'] as const;
 export type ExportRecord = Record<(typeof EXPORT_COLUMNS)[number], string>;
+
+const PRIVATE_COLUMNS: readonly string[] = ['latitude', 'longitude'];
+
+/** The public download: everything but the private coordinates. */
+export const PUBLIC_EXPORT_COLUMNS = EXPORT_COLUMNS.filter((c) => !PRIVATE_COLUMNS.includes(c));
 
 /**
  * Characters that make a spreadsheet treat a cell as a formula. `comments` is free text,
@@ -38,9 +51,12 @@ export type ExportRecord = Record<(typeof EXPORT_COLUMNS)[number], string>;
  */
 const FORMULA_START = /^[=+\-@\t\r]/;
 
+/** A plain number, such as a negative longitude: a spreadsheet reads it as a number, never a formula. */
+const PLAIN_NUMBER = /^[+-]?\d+(\.\d+)?$/;
+
 /** Prefix formula-like cells with `'`, which spreadsheets read as "this is text". */
 export function escapeCell(value: string): string {
-	return FORMULA_START.test(value) ? `'${value}` : value;
+	return FORMULA_START.test(value) && !PLAIN_NUMBER.test(value) ? `'${value}` : value;
 }
 
 /**

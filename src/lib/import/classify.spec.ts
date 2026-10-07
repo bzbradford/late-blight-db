@@ -112,6 +112,33 @@ describe('classify', () => {
 	});
 });
 
+describe('coordinates', () => {
+	const HERE = { lat: 43.0731, lon: -89.4012 };
+
+	it('never counts blank coordinates in a file as a change to stored ones', () => {
+		const [item] = classify([row(2, { location: undefined })], [existing(1, { location: HERE })]);
+		expect(item.kind).toBe('identical');
+	});
+
+	it('counts new or different coordinates as a change', () => {
+		const added = classify([row(2, { location: HERE })], [existing(1, { location: null })]);
+		expect(added[0].kind).toBe('conflict');
+		const moved = classify(
+			[row(2, { location: { lat: 43.1, lon: -89.4012 } })],
+			[existing(1, { location: HERE })]
+		);
+		expect(moved[0].kind).toBe('conflict');
+		expect(differingFields(existing(1, { location: HERE }), moved[0].row.values)).toEqual([
+			'location'
+		]);
+	});
+
+	it('matches identical coordinates', () => {
+		const [item] = classify([row(2, { location: { ...HERE } })], [existing(1, { location: HERE })]);
+		expect(item.kind).toBe('identical');
+	});
+});
+
 describe('differingFields', () => {
 	it('lists exactly the fields that differ', () => {
 		expect(differingFields(BASE, { ...BASE, crop: 'Tomato', comments: 'x' })).toEqual([

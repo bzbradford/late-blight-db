@@ -7,6 +7,7 @@
  */
 
 import { isCountyKey } from '$lib/counties/key';
+import { parseCoordinates, type Point } from '$lib/geo/coordinates';
 
 export type IncidentInput = {
 	diseaseId: number;
@@ -18,6 +19,12 @@ export type IncidentInput = {
 	strain: string | null;
 	comments: string | null;
 	source: string | null;
+	/**
+	 * Private coordinates (see `incident_locations`). `null` is none — on the form, a blank
+	 * field clears them. `undefined` leaves whatever is stored alone: a CSV row with blank
+	 * coordinates, so re-importing a public download can't wipe them.
+	 */
+	location?: Point | null;
 };
 
 export type FieldErrors = Partial<Record<keyof IncidentInput, string>>;
@@ -96,7 +103,8 @@ export function parseIncident(
 		operationType: normalizeText(data.get('operationType')),
 		strain: normalizeText(data.get('strain')),
 		comments: normalizeComments(data.get('comments')),
-		source: normalizeText(data.get('source'))
+		source: normalizeText(data.get('source')),
+		location: null
 	};
 
 	const errors: FieldErrors = {};
@@ -134,6 +142,15 @@ export function parseIncident(
 		if (v && v.length > MAX_SHORT) {
 			errors[field] = `Keep this under ${MAX_SHORT} characters.`;
 		}
+	}
+
+	// Shape only. Whether the point lies in the chosen county needs the county geometry,
+	// which the form and the server check separately (`$lib/geo/locate`).
+	const coordinates = String(data.get('coordinates') ?? '').trim();
+	if (coordinates) {
+		const parsed = parseCoordinates(coordinates);
+		if ('error' in parsed) errors.location = parsed.error;
+		else values.location = parsed.point;
 	}
 
 	if (values.comments && values.comments.length > MAX_COMMENTS) {

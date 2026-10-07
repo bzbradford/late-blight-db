@@ -96,11 +96,6 @@ export const incidents = pgTable(
 		comments: text('comments'),
 		source: text('source'),
 
-		// Reserved for possible future point-level precision. Plain numerics — the app
-		// has no spatial predicates and deliberately does not depend on PostGIS.
-		latitude: numeric('latitude', { precision: 8, scale: 5, mode: 'number' }),
-		longitude: numeric('longitude', { precision: 9, scale: 5, mode: 'number' }),
-
 		// Who entered it — shown publicly as "Reported by". Users are deactivated, never
 		// deleted, so this only goes null for rows that never had a creator (seed data).
 		createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
@@ -195,6 +190,23 @@ export const diseasesRelations = relations(diseases, ({ many }) => ({
 export const countiesRelations = relations(counties, ({ many }) => ({
 	incidents: many(incidents)
 }));
+
+/**
+ * Where a detection was found, when the reporter recorded it. **Private**: only admins and
+ * the detection's own reporter see it (`canEditIncident`), for research use; the public
+ * map, feed, table and download never read this table. Kept apart from `incidents` so
+ * coordinates can only reach a page through a query that asks for them by name.
+ *
+ * Plain numerics, five decimals (about a metre). Checked against the county on save
+ * (`$lib/geo/locate`), in app code: still no PostGIS.
+ */
+export const incidentLocations = pgTable('incident_locations', {
+	incidentId: integer('incident_id')
+		.primaryKey()
+		.references(() => incidents.id, { onDelete: 'cascade' }),
+	lat: numeric('lat', { precision: 7, scale: 5, mode: 'number' }).notNull(),
+	lon: numeric('lon', { precision: 8, scale: 5, mode: 'number' }).notNull()
+});
 
 export const incidentsRelations = relations(incidents, ({ one }) => ({
 	disease: one(diseases, { fields: [incidents.diseaseId], references: [diseases.id] }),

@@ -10,6 +10,7 @@ import {
 } from '$lib/import/rows';
 import { findImportCandidates, listCounties } from '$lib/server/queries/admin';
 import { listDiseases } from '$lib/server/queries/diseases';
+import { serverCountyShapes } from '$lib/server/geo';
 
 /**
  * Upload limits. The byte cap sits under adapter-node's default `BODY_SIZE_LIMIT` (512 KB)
@@ -48,7 +49,7 @@ export async function prepareImport(csv: string): Promise<PreparedImport> {
 	}
 
 	const [diseases, counties] = await Promise.all([listDiseases(), listCounties()]);
-	const context = { diseases, counties: buildCountyIndex(counties) };
+	const context = { diseases, counties: buildCountyIndex(counties), shapes: serverCountyShapes() };
 
 	const built = parsed.rows.map(({ row, record }) => buildRow(row, record, context));
 	const rowErrors: RowError[] = built.filter(isRowError);

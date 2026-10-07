@@ -70,10 +70,16 @@ than bind to a layer id. Data layers go above the basemap's last non-label layer
 its first label.
 
 **No PostGIS, and no geometry in the database.** Detections are county-resolution, keyed by
-5-digit FIPS. There is no spatial predicate anywhere in the app. County geometry is a static
-build-time TopoJSON asset under `static/geo/`; the server returns only detection rows, and the
-choropleth is a client-side join on FIPS via `map.setFeatureState()`. Never re-serialize
-GeoJSON to recolor the map, and do not add a spatial extension.
+5-digit FIPS. County geometry is a static build-time TopoJSON asset under `static/geo/`; the
+server returns only detection rows, and the choropleth is a client-side join on FIPS via
+`map.setFeatureState()`. Never re-serialize GeoJSON to recolor the map, and do not add a
+spatial extension. The one spatial predicate is point-in-county for private coordinates
+(`$lib/geo/locate.ts`), in app code on that same TopoJSON: the form checks as you type, and
+the server re-checks on every save and import (`$lib/server/geo.ts` bundles the file, since
+Vercel functions can't read `static/`). The geometry is simplified, so the check allows for
+it: within 2 km of the chosen county passes, 2–10 km needs an explicit "use anyway"
+(`confirmLocation`), beyond that is refused. Those thresholds were measured — see
+`TOLERANCE_KM` — and should be re-measured if the simplification changes.
 
 **View state lives in `ViewState`, not the URL; views are shared deliberately.** The public
 map always opens at `/` in the default view, like an app rather than a set of pages. Disease,
@@ -114,11 +120,19 @@ capitalize the first letter only. Sentence case, never title case — title-casi
 crop names. The admin form offers a `datalist` of distinct existing values so spellings
 converge naturally, but anything typed is accepted.
 
-**Everything recorded is public.** There are no admin-only or private fields. Detections
-display at county resolution and carry no farm-identifying data; anything further worth
-sharing goes in `comments`. That includes who entered each one: "Reported by" (or
-"Imported by", for CSV back-loads) shows the account's display name and affiliation, never
-its email address or user ID.
+**Everything recorded is public, except coordinates.** Detections display at county
+resolution and carry no farm-identifying data; anything further worth sharing goes in
+`comments`. That includes who entered each one: "Reported by" (or "Imported by", for CSV
+back-loads) shows the account's display name and affiliation, never its email address or
+user ID. The one private field is a detection's optional coordinates, kept for approved
+research use in their own table, `incident_locations`, so they reach a page only through
+a query that names it (`getIncidentLocation`, `getLocations`, the import's candidates in
+`queries/admin.ts`). Who sees them is `canEditIncident`: admins, and the reporter who
+entered the detection. The admin download (`/admin/detections.csv`, admin-only) includes
+them; the public download leaves the columns out (`PUBLIC_EXPORT_COLUMNS`). On import,
+blank coordinates leave stored ones alone, so re-importing a public download can't wipe
+them; on the form, a blank field clears them. An e2e test fetches the public pages and
+download looking for them.
 
 **Two roles, enforced on the server.** `admin` and `reporter` (`$lib/auth/roles.ts`). A
 reporter changes only detections whose `created_by` is theirs (`canEditIncident`), and
@@ -209,7 +223,9 @@ requests, such as the sign-in limits, lives in Postgres, and the database client
   both `drizzle/0002_public_id_function.sql` and `src/lib/public-id.ts`; a test holds
   them together.
 - `src/lib/csv/columns.ts` — the one CSV column spec for download, template, and import.
-  The download adds an export-only `reported_by`; the importer ignores unknown columns.
+  The downloads add an export-only `reported_by`; the importer ignores unknown columns.
+  The public download drops `latitude`/`longitude`. A cell that looks like a formula is
+  prefixed with `'`, but not a plain number, so a longitude stays numeric in Excel.
   `src/lib/import/` holds the pure import logic (row resolution, classification);
   `src/lib/server/import.ts` runs it against the database. An import never inserts a
   possible duplicate without an explicit "keep both".
@@ -230,6 +246,8 @@ requests, such as the sign-in limits, lives in Postgres, and the database client
 - Do not enable public signup — accounts come from an admin's invitation (or `create-admin`).
 - Do not hard-delete users; deactivate them. Do not let an admin act on their own account
   from the users page, act on a more senior admin, or leave no active admin.
+- Do not expose coordinates outside the edit page (for those who may edit the detection),
+  the import review, and the admin download.
 - Do not expose a user's email address or ID outside `/admin/users`. The one exception is
   the option values of the "Reported by" filter on `/detections`, which only signed-in
   viewers receive.
@@ -238,7 +256,8 @@ requests, such as the sign-in limits, lives in Postgres, and the database client
 - Do not make sign-out reachable by GET.
 - Do not hardcode the year list; derive available years from the data.
 - Do not add lookup tables, enums, or constraints for crop, operation type, or strain.
-- Do not add private or admin-only fields to incidents.
+- Do not add private or admin-only fields to incidents. Coordinates are the one exception,
+  and they live in `incident_locations`: never join it into a public query.
 - Do not pass a raw CSS variable or `oklch()` value to a MapLibre paint property.
 - Do not add counties outside the continental US and Canada's provinces south of 60°N.
 - Do not let the county field accept free text. Everything on the map keys on FIPS, so that

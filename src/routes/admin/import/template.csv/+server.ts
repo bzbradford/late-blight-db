@@ -10,6 +10,8 @@ export const GET: RequestHandler = () => {
 		county_fips: '55025',
 		state: 'WI',
 		county: 'Dane',
+		latitude: '43.0731',
+		longitude: '-89.4012',
 		observed_on: '2026-07-15',
 		reported_on: '2026-07-17',
 		crop: 'Potato',

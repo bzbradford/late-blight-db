@@ -12,9 +12,19 @@
 		name: string;
 		invalid?: boolean;
 		class?: string;
+		/** Called whenever the chosen county changes: its FIPS, or '' when un-chosen. */
+		onchoose?: (fips: string) => void;
 	};
 
-	let { counties, value = '', id, name, invalid = false, class: className = '' }: Props = $props();
+	let {
+		counties,
+		value = '',
+		id,
+		name,
+		invalid = false,
+		class: className = '',
+		onchoose
+	}: Props = $props();
 
 	/*
 	 * A searchable picker, not a free-text field. Typing only filters the list; the form
@@ -50,8 +60,18 @@
 		fips = county.fips;
 		text = countyLabel(county);
 		open = false;
+		onchoose?.(county.fips);
 		// A programmatic value change fires no event; the form's change tracking needs one.
 		queueMicrotask(() => hidden?.dispatchEvent(new Event('change', { bubbles: true })));
+	}
+
+	/**
+	 * Chooses a county for the person, e.g. the one their coordinates fall in. Still only a
+	 * county from the list: the hidden FIPS is never set to anything typed.
+	 */
+	export function select(countyFips: string) {
+		const county = byFips.get(countyFips);
+		if (county) choose(county);
 	}
 
 	function oninput(event: Event & { currentTarget: HTMLInputElement }) {
@@ -59,6 +79,7 @@
 		// Editing the text un-chooses the county until one is picked again.
 		if (fips) {
 			fips = '';
+			onchoose?.('');
 			queueMicrotask(() => hidden?.dispatchEvent(new Event('change', { bubbles: true })));
 		}
 		open = true;

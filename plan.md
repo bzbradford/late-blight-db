@@ -923,6 +923,51 @@ Canadian census divisions south of 60°N, in the ten provinces, alongside US cou
 - [x] Full e2e run: 99 green (2026-10-07).
 - [ ] Deploy: migration 0009 runs before `pnpm seed`, which every deploy already does.
 
+## Phase 9 — Private coordinates
+
+Optional point locations on detections, for disease modelling by approved researchers.
+
+- **D34. Private, in their own table.** `incident_locations` (incident, lat, lon; five
+  decimals, about a metre), so coordinates reach a page only through a query that names
+  that table. The unused `incidents.latitude`/`longitude` columns were dropped (migration
+  0010 carries over any values first; there were none). The first exception to "everything
+  recorded is public"; `CLAUDE.md` amended.
+- **D35. Who sees them.** Admins, and the reporter who entered the detection: the same rule
+  as editing (`canEditIncident`). The public map, feed, table, `/api/view`, and download
+  never read the table.
+- **D36. Checked against the county, in app code.** Point-in-polygon on the map's own
+  TopoJSON (`$lib/geo/locate.ts`), in the form as you type and again on the server for
+  every save and import. No PostGIS. Measured on 135,000 random points inside the
+  full-detail boundaries: 0.66% (US) / 0.78% (Canada) land outside their own simplified
+  county, 99% of those within 2 km; all 14 beyond 2 km were coastal islands or shoreline
+  the simplification removed, the worst 8.9 km. So: within 2 km passes; 2–10 km needs an
+  explicit "use anyway"; beyond 10 km, or in another county, saving is blocked with a
+  "Use <county>" fix.
+- **D37. The form.** One paste-friendly field ("43.0731, -89.4012", hemisphere letters
+  accepted). With no county chosen, the coordinates choose it. A dropped minus sign or
+  swapped order is offered its correction.
+- **D38. CSV.** Import-only `latitude`/`longitude` columns. With no county named, the
+  coordinates choose it (within 2 km only; the 2–10 km band needs the form). Blank
+  coordinates leave stored ones alone. Admin-only download `/admin/detections.csv` has them;
+  the public one leaves the columns out.
+
+- [x] Schema + migration 0010; queries read/write through `writeLocation`; audit rows
+      include coordinates (update, delete, import).
+- [x] `$lib/geo/locate.ts`, `$lib/geo/coordinates.ts`, `$lib/server/geo.ts` (bundled
+      TopoJSON), `$lib/geo/client.ts` (lazy fetch).
+- [x] Form field with live verdict, "Use <county>", "Use these coordinates anyway",
+      "Clear coordinates", correction offer; server re-check in both actions.
+- [x] Import (`buildRow`, classify ignores blank coordinates), review table row,
+      template columns, admin download + "With coordinates" button (admins only).
+- [x] Plain numbers are no longer formula-escaped in CSV (negative longitudes stayed
+      text in Excel).
+- [x] Tests: 211 unit (parsing, check bands, real geometry incl. Ottawa/Richmond
+      city/Lake Michigan, import, classify); e2e `coordinates.e2e.ts` (auto-choose,
+      mismatch fix, server refusal past the form, offshore confirm, minus-sign fix, no
+      leak to visitors or reporters, admin vs public download, import). 107 e2e green.
+- [ ] Researcher access (who is "approved", and how they receive data) is a policy
+      question; the admin download is the mechanism for now.
+
 ---
 
 ## Session log
@@ -1013,3 +1058,5 @@ Append one line per working session: date, what moved, what's next.
 - 2026-10-07 — Phase 8 app support: migration 0009, shared county-key rule, accent-folded
   import matching, State/Province wording, `us-canada` extent, Ottawa e2e. check/lint clean,
   186 unit / 99 e2e green. Not yet committed.
+- 2026-10-07 — Phase 9, private coordinates (D34–D38). check/lint clean, 211 unit / 107
+  e2e green. Not yet committed.

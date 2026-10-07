@@ -71,6 +71,13 @@
       "when": 1791389983991,
       "tag": "0009_canada_state_fips",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791393605744,
+      "tag": "0010_incident_locations",
+      "breakpoints": true
     }
   ]
 }

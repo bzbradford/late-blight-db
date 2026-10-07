@@ -35,7 +35,7 @@ export function canDeleteIncident(viewer: Viewer | null): boolean {
 }
 
 /** Paths under /admin that only admins may reach — pages, form actions, and endpoints. */
-export const ADMIN_ONLY_PATHS = ['/admin/users', '/admin/import'];
+export const ADMIN_ONLY_PATHS = ['/admin/users', '/admin/import', '/admin/detections.csv'];
 
 export function isAdminOnlyPath(pathname: string): boolean {
 	return ADMIN_ONLY_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));

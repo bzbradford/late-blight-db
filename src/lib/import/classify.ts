@@ -38,8 +38,11 @@ export type ImportItem =
 			defaultChoice: Choice;
 	  };
 
-/** Every field that makes a detection what it is. `id`s and timestamps are bookkeeping. */
-const FIELDS: (keyof IncidentInput)[] = [
+/**
+ * Every field that makes a detection what it is. `id`s and timestamps are bookkeeping;
+ * `location` is compared on its own terms (`sameLocation`).
+ */
+const FIELDS: Exclude<keyof IncidentInput, 'location'>[] = [
 	'diseaseId',
 	'countyFips',
 	'observedOn',
@@ -51,13 +54,24 @@ const FIELDS: (keyof IncidentInput)[] = [
 	'source'
 ];
 
+/**
+ * Coordinates count only when both sides say something: a row with blank coordinates
+ * leaves stored ones alone (`undefined`), so it can't differ from them.
+ */
+function sameLocation(a: IncidentInput, b: IncidentInput): boolean {
+	if (a.location === undefined || b.location === undefined) return true;
+	if (a.location === null || b.location === null) return a.location === b.location;
+	return a.location.lat === b.location.lat && a.location.lon === b.location.lon;
+}
+
 export function sameValues(a: IncidentInput, b: IncidentInput): boolean {
-	return FIELDS.every((f) => (a[f] ?? null) === (b[f] ?? null));
+	return FIELDS.every((f) => (a[f] ?? null) === (b[f] ?? null)) && sameLocation(a, b);
 }
 
 /** The fields that differ, for highlighting on the review page. */
 export function differingFields(a: IncidentInput, b: IncidentInput): (keyof IncidentInput)[] {
-	return FIELDS.filter((f) => (a[f] ?? null) !== (b[f] ?? null));
+	const differing = FIELDS.filter((f) => (a[f] ?? null) !== (b[f] ?? null));
+	return sameLocation(a, b) ? differing : [...differing, 'location'];
 }
 
 function key(v: IncidentInput): string {

@@ -2,9 +2,10 @@ import { error } from '@sveltejs/kit';
 import { and, asc, eq, exists, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { canDeleteIncident, canEditIncident, type Viewer } from '$lib/auth/roles';
 import { db } from '$lib/server/db';
-import { counties, diseases, incidents, user } from '$lib/server/db/schema';
+import { counties, diseases, incidentLocations, incidents, user } from '$lib/server/db/schema';
 import { recordAudit, type Tx } from '$lib/server/queries/audit';
 import type { Choice, ExistingRow, ImportItem } from '$lib/import/classify';
+import type { Point } from '$lib/geo/coordinates';
 import type { IncidentInput } from '$lib/validation/incident';
 
 export type AdminIncident = {
@@ -84,6 +85,56 @@ export async function listReporters(): Promise<{ id: string; name: string }[]> {
 export async function getIncident(id: number): Promise<AdminIncident | undefined> {
 	const rows = await selectAdmin().where(eq(incidents.id, id)).limit(1);
 	return rows[0];
+}
+
+// --- Private coordinates -------------------------------------------------------------
+// Only these functions read or write `incident_locations`. Callers decide who may see the
+// result: the edit page shows it to whoever may edit the detection (`canEditIncident`),
+// the import and the admin download to admins.
+
+async function readLocation(conn: Tx | typeof db, id: number): Promise<Point | null> {
+	const [row] = await conn
+		.select({ lat: incidentLocations.lat, lon: incidentLocations.lon })
+		.from(incidentLocations)
+		.where(eq(incidentLocations.incidentId, id));
+	return row ?? null;
+}
+
+/** The detection's coordinates. Only for a viewer who may edit it. */
+export async function getIncidentLocation(id: number): Promise<Point | null> {
+	return readLocation(db, id);
+}
+
+/** Coordinates for many detections at once, for the admin download. */
+export async function getLocations(ids: number[]): Promise<Map<number, Point>> {
+	if (ids.length === 0) return new Map();
+	const rows = await db
+		.select({
+			id: incidentLocations.incidentId,
+			lat: incidentLocations.lat,
+			lon: incidentLocations.lon
+		})
+		.from(incidentLocations)
+		.where(inArray(incidentLocations.incidentId, ids));
+	return new Map(rows.map(({ id, lat, lon }) => [id, { lat, lon }]));
+}
+
+/** `undefined` leaves the stored coordinates alone; `null` removes them. */
+async function writeLocation(tx: Tx, id: number, location: Point | null | undefined) {
+	if (location === undefined) return;
+	if (location === null) {
+		await tx.delete(incidentLocations).where(eq(incidentLocations.incidentId, id));
+		return;
+	}
+	await tx
+		.insert(incidentLocations)
+		.values({ incidentId: id, ...location })
+		.onConflictDoUpdate({ target: incidentLocations.incidentId, set: location });
+}
+
+/** The row as the audit log should keep it: the detection plus its coordinates. */
+async function withLocation<T extends { id: number }>(tx: Tx, row: T) {
+	return { ...row, location: await readLocation(tx, row.id) };
 }
 
 export async function countyExists(fips: string): Promise<boolean> {
@@ -192,13 +243,15 @@ function isPublicIdCollision(err: unknown): boolean {
  * transaction, so a bare retry would fail on "current transaction is aborted".
  */
 async function insertIncident(tx: Tx, values: IncidentInput, actor: Actor, imported = false) {
+	const { location, ...fields } = values;
 	for (let attempt = 1; ; attempt++) {
 		try {
 			return await tx.transaction(async (sp) => {
 				const [row] = await sp
 					.insert(incidents)
-					.values({ ...values, createdBy: actor.id, imported })
+					.values({ ...fields, createdBy: actor.id, imported })
 					.returning({ id: incidents.id, publicId: incidents.publicId });
+				await writeLocation(sp, row.id, location);
 				return row;
 			});
 		} catch (err) {
@@ -218,11 +271,13 @@ export async function createIncident(input: IncidentInput, actor: Actor): Promis
 
 export async function updateIncident(id: number, input: IncidentInput, actor: Actor) {
 	await db.transaction(async (tx) => {
-		const before = await editableIncident(tx, id, actor);
+		const before = await withLocation(tx, await editableIncident(tx, id, actor));
+		const { location, ...fields } = input;
 		await tx
 			.update(incidents)
-			.set({ ...input, updatedAt: new Date() })
+			.set({ ...fields, updatedAt: new Date() })
 			.where(eq(incidents.id, id));
+		await writeLocation(tx, id, location);
 		await writeAudit(tx, 'update', id, actor, before, input);
 	});
 }
@@ -263,8 +318,10 @@ export async function deleteIncident(id: number, actor: Actor) {
 			.for('update', { of: incidents });
 		if (!before) error(404, 'Not found');
 		if (!before.deletedAt) error(409, 'Retract a detection before deleting it.');
+		// Read before the delete cascades to it, so the audit row keeps the coordinates too.
+		const record = await withLocation(tx, before);
 		await tx.delete(incidents).where(eq(incidents.id, id));
-		await writeAudit(tx, 'delete', id, actor, before, null);
+		await writeAudit(tx, 'delete', id, actor, record, null);
 	});
 }
 
@@ -307,19 +364,26 @@ export async function findImportCandidates(
 			comments: incidents.comments,
 			source: incidents.source,
 			updatedAt: incidents.updatedAt,
-			deletedAt: incidents.deletedAt
+			deletedAt: incidents.deletedAt,
+			lat: incidentLocations.lat,
+			lon: incidentLocations.lon
 		})
 		.from(incidents)
 		.innerJoin(diseases, eq(diseases.id, incidents.diseaseId))
 		.innerJoin(counties, eq(counties.fips, incidents.countyFips))
+		// Import is admin-only, so the review may show stored coordinates.
+		.leftJoin(incidentLocations, eq(incidentLocations.incidentId, incidents.id))
 		.where(or(...conditions));
 
-	return rows.map(({ diseaseName, countyName, stateUsps, updatedAt, deletedAt, ...r }) => ({
-		...r,
-		updatedAt: updatedAt.toISOString(),
-		deletedAt: deletedAt?.toISOString() ?? null,
-		label: { disease: diseaseName, county: `${countyName}, ${stateUsps}` }
-	}));
+	return rows.map(
+		({ diseaseName, countyName, stateUsps, updatedAt, deletedAt, lat, lon, ...r }) => ({
+			...r,
+			location: lat !== null && lon !== null ? { lat, lon } : null,
+			updatedAt: updatedAt.toISOString(),
+			deletedAt: deletedAt?.toISOString() ?? null,
+			label: { disease: diseaseName, county: `${countyName}, ${stateUsps}` }
+		})
+	);
 }
 
 export type ImportSummary = { added: number; updated: number; identical: number; kept: number };
@@ -371,11 +435,14 @@ export async function applyImport(
 					throw new Error(`Row ${item.row.row}: nothing to update.`);
 				}
 				const [target] = item.match.rows;
-				const before = await getIncidentTx(tx, target.id);
+				const current = await getIncidentTx(tx, target.id);
+				const before = current && (await withLocation(tx, current));
+				const { location, ...fields } = item.row.values;
 				await tx
 					.update(incidents)
-					.set({ ...item.row.values, updatedAt: new Date() })
+					.set({ ...fields, updatedAt: new Date() })
 					.where(eq(incidents.id, target.id));
+				await writeLocation(tx, target.id, location);
 				await writeAudit(tx, 'import-update', target.id, actor, before, {
 					...item.row.values,
 					provenance

@@ -24,7 +24,12 @@ describe('canEditIncident', () => {
 
 describe('isAdminOnlyPath', () => {
 	it('covers the users and import areas, and everything under them', () => {
-		for (const p of ['/admin/users', '/admin/import', '/admin/import/template.csv']) {
+		for (const p of [
+			'/admin/users',
+			'/admin/import',
+			'/admin/import/template.csv',
+			'/admin/detections.csv'
+		]) {
 			expect(isAdminOnlyPath(p)).toBe(true);
 		}
 	});

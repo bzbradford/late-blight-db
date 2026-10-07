@@ -1,4 +1,12 @@
 import { isCountyKey, normalizeCountyKey } from '$lib/counties/key';
+import { parseCoordinates, type Point } from '$lib/geo/coordinates';
+import {
+	checkLocation,
+	locationError,
+	shapeLabel,
+	TOLERANCE_KM,
+	type CountyShape
+} from '$lib/geo/locate';
 import { TEMPLATE_EXAMPLE_COMMENT, type CsvRecord } from '$lib/csv/columns';
 import { normalizePublicId } from '$lib/public-id';
 import { parseIncident, type FieldErrors, type IncidentInput } from '$lib/validation/incident';
@@ -27,7 +35,8 @@ const FIELD_LABELS: Record<keyof FieldErrors, string> = {
 	operationType: 'operation_type',
 	strain: 'strain',
 	comments: 'comments',
-	source: 'source'
+	source: 'source',
+	location: 'latitude/longitude'
 };
 
 /**
@@ -143,10 +152,54 @@ export function resolveDisease(value: string, diseases: DiseaseRef[]): DiseaseRe
  * Everything after disease and county resolution is `parseIncident` — the same function
  * the admin form uses — so an import cannot accept what the form would refuse.
  */
+/**
+ * A row's coordinates: both columns or neither. Blank is `undefined`, which leaves any
+ * stored coordinates alone (a public download has no coordinate columns at all).
+ */
+function readLocation(record: CsvRecord): { location: Point | undefined } | { error: string } {
+	const { latitude, longitude } = record;
+	if (!latitude && !longitude) return { location: undefined };
+	if (!latitude || !longitude) return { error: 'Give both latitude and longitude, or neither.' };
+	const parsed = parseCoordinates(`${latitude}, ${longitude}`);
+	return 'error' in parsed
+		? { error: `latitude/longitude: ${parsed.error}` }
+		: { location: parsed.point };
+}
+
+/** What the form would offer to confirm can't be confirmed in a file. */
+const CONFIRM_IN_FORM =
+	' To keep them, enter this detection through the form, which can confirm them.';
+
+/**
+ * The county a row's coordinates fall in, for a row that names no county. Only one the
+ * point is inside, or within `TOLERANCE_KM` of: anything further is for a person to judge.
+ */
+function countyFromLocation(
+	location: Point,
+	shapes: CountyShape[],
+	index: CountyIndex
+): { county: CountyRef } | { error: string } {
+	const check = checkLocation(shapes, location, null);
+	const nearest = check.kind === 'unchosen' ? check.nearest : null;
+	const county = nearest && nearest.km <= TOLERANCE_KM && index.byFips.get(nearest.shape.fips);
+	if (county) return { county };
+	const where = `latitude/longitude ${location.lat}, ${location.lon}`;
+	if (!nearest) return { error: `${where} are not in any county on this map.` };
+	return {
+		error: `${where} are ${nearest.km.toFixed(1)} km outside ${shapeLabel(nearest.shape)}.${CONFIRM_IN_FORM}`
+	};
+}
+
 export function buildRow(
 	row: number,
 	record: CsvRecord,
-	context: { diseases: DiseaseRef[]; counties: CountyIndex; todayIso?: string }
+	context: {
+		diseases: DiseaseRef[];
+		counties: CountyIndex;
+		/** County geometry, for checking coordinates (`serverCountyShapes()`). */
+		shapes: CountyShape[];
+		todayIso?: string;
+	}
 ): ImportRow | RowError {
 	const messages: string[] = [];
 
@@ -167,8 +220,27 @@ export function buildRow(
 		messages.push(`disease "${record.disease}" is not recognised (use one of: ${known}).`);
 	}
 
-	const county = resolveCounty(record, context.counties);
+	const coordinates = readLocation(record);
+	if ('error' in coordinates) messages.push(coordinates.error);
+	const location = 'location' in coordinates ? coordinates.location : undefined;
+
+	const namesCounty = Boolean(record.county_fips || record.state || record.county);
+	const county =
+		location && !namesCounty
+			? countyFromLocation(location, context.shapes, context.counties)
+			: resolveCounty(record, context.counties);
 	if ('error' in county) messages.push(county.error);
+
+	// Coordinates beside a named county must agree with it, as on the form.
+	if (location && namesCounty && 'county' in county) {
+		const check = checkLocation(context.shapes, location, county.county.fips);
+		const problem = locationError(check, false);
+		if (problem) {
+			messages.push(
+				`latitude/longitude: ${problem}${check.kind === 'confirm' ? CONFIRM_IN_FORM : ''}`
+			);
+		}
+	}
 
 	const fields: Record<string, string> = {
 		diseaseId: disease ? String(disease.id) : '',
@@ -186,6 +258,8 @@ export function buildRow(
 		{ get: (name) => fields[name] ?? null },
 		{ todayIso: context.todayIso }
 	);
+	// Read above, column by column; blank means "leave alone" here, not "clear" as on the form.
+	values.location = location;
 
 	// Disease and county problems were already reported above, in more specific terms, and a
 	// report date copied from observed_on can only repeat what is said about observed_on.

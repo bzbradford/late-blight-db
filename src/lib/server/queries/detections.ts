@@ -247,6 +247,8 @@ export async function getCountyAggregates(
 }
 
 export type ExportRow = {
+	/** Internal; never written to a file. The admin download looks coordinates up by it. */
+	id: number;
 	publicId: string;
 	diseaseSlug: string;
 	countyFips: string;
@@ -275,6 +277,7 @@ export async function getDetectionsForExport(
 ): Promise<ExportRow[]> {
 	const rows = await db
 		.select({
+			id: incidents.id,
 			publicId: incidents.publicId,
 			diseaseSlug: diseases.slug,
 			countyFips: incidents.countyFips,

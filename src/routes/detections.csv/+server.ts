@@ -1,8 +1,6 @@
-import { EXPORT_COLUMNS, type ExportRecord } from '$lib/csv/columns';
+import { PUBLIC_EXPORT_COLUMNS } from '$lib/csv/columns';
 import { toCsv } from '$lib/csv/io';
-import { getDetectionsForExport, parseState } from '$lib/server/queries/detections';
-import { listDiseases } from '$lib/server/queries/diseases';
-import { formatReporter } from '$lib/validation/account';
+import { csvResponse, exportQuery, exportRecords } from '$lib/server/export';
 import type { RequestHandler } from './$types';
 
 /**
@@ -10,49 +8,11 @@ import type { RequestHandler } from './$types';
  * `year=all` widen it; `state=WI` narrows it to one state).
  *
  * The import template's columns plus `reported_by`, which the importer ignores, so a
- * download can be edited and imported again, matching on `id`. Everything in it is already public on the map.
+ * download can be edited and imported again, matching on `id`. Everything in it is already
+ * public on the map. The private coordinates are left out; admins download them from
+ * `/admin/detections.csv`.
  */
 export const GET: RequestHandler = async ({ url }) => {
-	const diseases = await listDiseases();
-	const diseaseParam = url.searchParams.get('disease');
-	const disease =
-		diseaseParam === 'all' ? null : (diseases.find((d) => d.slug === diseaseParam) ?? diseases[0]);
-
-	const yearParam = url.searchParams.get('year');
-	const year = yearParam === 'all' ? null : Number(yearParam) || new Date().getFullYear();
-
-	const state = parseState(url.searchParams.get('state'));
-
-	const rows = await getDetectionsForExport(disease?.slug ?? null, year, state);
-	const records: ExportRecord[] = rows.map((r) => ({
-		id: r.publicId,
-		disease: r.diseaseSlug,
-		county_fips: r.countyFips,
-		state: r.stateUsps,
-		county: r.countyName,
-		observed_on: r.observedOn,
-		reported_on: r.reportedOn,
-		crop: r.crop ?? '',
-		operation_type: r.operationType ?? '',
-		strain: r.strain ?? '',
-		source: r.source ?? '',
-		comments: r.comments ?? '',
-		reported_by: r.reportedBy
-			? `${r.imported ? 'Imported by ' : ''}${formatReporter(r.reportedBy)}`
-			: ''
-	}));
-
-	// late-blight-wi-2026, all-diseases-all-years, …
-	const fileName = [disease?.slug ?? 'all-diseases', state?.toLowerCase(), year ?? 'all-years']
-		.filter(Boolean)
-		.join('-');
-
-	return new Response(toCsv(records, EXPORT_COLUMNS), {
-		headers: {
-			'content-type': 'text/csv; charset=utf-8',
-			'content-disposition': `attachment; filename="${fileName}.csv"`,
-			// Detections change as admins record them; always serve the current set.
-			'cache-control': 'no-store'
-		}
-	});
+	const { rows, fileName } = await exportQuery(url);
+	return csvResponse(toCsv(exportRecords(rows), PUBLIC_EXPORT_COLUMNS), fileName);
 };

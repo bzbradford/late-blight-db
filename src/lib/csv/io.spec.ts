@@ -9,8 +9,8 @@ function record(overrides: Partial<CsvRecord>): CsvRecord {
 describe('formula escaping', () => {
 	it('neutralises cells a spreadsheet would run as formulas', () => {
 		expect(escapeCell('=HYPERLINK("x")')).toBe(`'=HYPERLINK("x")`);
-		expect(escapeCell('+1')).toBe(`'+1`);
-		expect(escapeCell('-1')).toBe(`'-1`);
+		expect(escapeCell('+1+1')).toBe(`'+1+1`);
+		expect(escapeCell("-2+3+cmd|' /C calc'!A0")).toBe(`'-2+3+cmd|' /C calc'!A0`);
 		expect(escapeCell('@SUM(A1)')).toBe(`'@SUM(A1)`);
 		expect(escapeCell('\tx')).toBe(`'\tx`);
 	});
@@ -21,8 +21,14 @@ describe('formula escaping', () => {
 		expect(escapeCell('')).toBe('');
 	});
 
+	it('leaves plain numbers alone, so a negative longitude stays a number', () => {
+		expect(escapeCell('-89.4012')).toBe('-89.4012');
+		expect(escapeCell('+1')).toBe('+1');
+		expect(escapeCell('-1')).toBe('-1');
+	});
+
 	it('round-trips, and keeps an apostrophe the author actually wrote', () => {
-		for (const v of ['=1+1', '-dash', 'plain', "'quoted", "'"]) {
+		for (const v of ['=1+1', '-dash', '-89.4012', 'plain', "'quoted", "'"]) {
 			expect(unescapeCell(escapeCell(v))).toBe(v);
 		}
 	});

@@ -3,6 +3,7 @@ import {
 	countyExists,
 	deleteIncident,
 	getIncident,
+	getIncidentLocation,
 	listCounties,
 	listFieldSuggestions,
 	restoreIncident,
@@ -10,6 +11,7 @@ import {
 	updateIncident
 } from '$lib/server/queries/admin';
 import { listDiseases } from '$lib/server/queries/diseases';
+import { locationProblem } from '$lib/server/geo';
 import { hasErrors, parseIncident, today } from '$lib/validation/incident';
 import { canDeleteIncident, canEditIncident, viewerOf } from '$lib/auth/roles';
 import type { Actions, PageServerLoad } from './$types';
@@ -36,13 +38,22 @@ async function editable(param: string, user: App.Locals['user']) {
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const incident = await editable(params.id, locals.user);
 
-	const [diseases, counties, suggestions] = await Promise.all([
+	const [diseases, counties, suggestions, location] = await Promise.all([
 		listDiseases(),
 		listCounties(),
-		listFieldSuggestions()
+		listFieldSuggestions(),
+		// Private, but `editable` has already established that this viewer may edit it.
+		getIncidentLocation(incident.id)
 	]);
 	const canDelete = canDeleteIncident(locals.user ? viewerOf(locals.user) : null);
-	return { incident, diseases, counties, suggestions, maxDate: today(), canDelete };
+	return {
+		incident: { ...incident, location },
+		diseases,
+		counties,
+		suggestions,
+		maxDate: today(),
+		canDelete
+	};
 };
 
 export const actions: Actions = {
@@ -55,6 +66,12 @@ export const actions: Actions = {
 
 		if (!errors.countyFips && !(await countyExists(values.countyFips))) {
 			errors.countyFips = 'That county is not in the database.';
+		}
+
+		// Coordinates must fall in (or very near) the chosen county; see `$lib/geo/locate`.
+		if (!errors.countyFips && !errors.location) {
+			const problem = locationProblem(values, data.get('confirmLocation') === 'yes');
+			if (problem) errors.location = problem;
 		}
 
 		if (hasErrors(errors)) return fail(400, { errors, values });

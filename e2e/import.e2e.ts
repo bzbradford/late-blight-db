@@ -140,7 +140,7 @@ test.describe('CSV import', () => {
 		const res = await page.request.get('/admin/import/template.csv');
 		expect(res.status()).toBe(200);
 		const text = await res.text();
-		expect(text).toContain('id,disease,county_fips,state,county,observed_on');
+		expect(text).toContain('id,disease,county_fips,state,county,latitude,longitude,observed_on');
 
 		await page.goto('/admin/import');
 		await page.setInputFiles('#file', {

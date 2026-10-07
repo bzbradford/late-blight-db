@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { Button } from '$lib/components/ui/button';
+	import { formatCoordinates } from '$lib/geo/coordinates';
 	import { differingFields, type Choice, type ImportItem, type Match } from '$lib/import/classify';
 	import type { IncidentInput } from '$lib/validation/incident';
 	import type { PageProps } from './$types';
@@ -60,7 +61,8 @@
 		{ key: 'operationType', label: 'Operation' },
 		{ key: 'strain', label: 'Strain' },
 		{ key: 'source', label: 'Source' },
-		{ key: 'comments', label: 'Comments' }
+		{ key: 'comments', label: 'Comments' },
+		{ key: 'location', label: 'Coordinates' }
 	];
 
 	type Other = {
@@ -92,8 +94,14 @@
 		);
 	}
 
-	function show(value: unknown) {
-		return value === null || value === undefined || value === '' ? '—' : String(value);
+	function show(value: IncidentInput[keyof IncidentInput]) {
+		if (value === null || value === undefined || value === '') return '—';
+		return typeof value === 'object' ? formatCoordinates(value) : String(value);
+	}
+
+	/** The file's side: blank coordinates leave stored ones alone, so say so. */
+	function showRow(values: IncidentInput, key: keyof IncidentInput) {
+		return key === 'location' && values.location === undefined ? 'unchanged' : show(values[key]);
 	}
 </script>
 
@@ -236,7 +244,7 @@
 														>
 													{/each}
 													<td class="py-1 pr-3 whitespace-pre-line {differs ? 'font-medium' : ''}">
-														{show(item.row.values[field.key])}
+														{showRow(item.row.values, field.key)}
 													</td>
 												</tr>
 											{/each}
@@ -341,6 +349,13 @@
 					5-digit county FIPS code, or <code>C</code> + a Canadian census division's code (<code
 						>C3506</code
 					>). Or leave blank and give <code>state</code> + <code>county</code>.
+				</dd>
+				<dt class="font-mono text-xs text-foreground">latitude, longitude</dt>
+				<dd>
+					Optional and private: decimal degrees, e.g. <code>43.0731</code> and
+					<code>-89.4012</code>. They must fall in the row's county; with no county given, they
+					choose it. Blank leaves any stored coordinates as they are. The public download leaves
+					these columns out.
 				</dd>
 				<dt class="font-mono text-xs text-foreground">state, county</dt>
 				<dd>

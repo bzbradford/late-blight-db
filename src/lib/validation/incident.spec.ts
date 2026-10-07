@@ -86,6 +86,20 @@ describe('parseIncident', () => {
 		}
 	});
 
+	it('reads optional coordinates; blank means none', () => {
+		expect(parseIncident(form(), { todayIso: TODAY }).values.location).toBeNull();
+		const { values, errors } = parseIncident(form({ coordinates: ' 43.0731, -89.4012 ' }), {
+			todayIso: TODAY
+		});
+		expect(hasErrors(errors)).toBe(false);
+		expect(values.location).toEqual({ lat: 43.0731, lon: -89.4012 });
+	});
+
+	it('refuses coordinates it cannot read', () => {
+		const { errors } = parseIncident(form({ coordinates: 'near Madison' }), { todayIso: TODAY });
+		expect(errors.location).toMatch(/decimal degrees/);
+	});
+
 	it('rejects an observation date in the future', () => {
 		const { errors } = parseIncident(form({ observedOn: '2026-09-12' }), { todayIso: TODAY });
 		expect(errors.observedOn).toMatch(/future/);

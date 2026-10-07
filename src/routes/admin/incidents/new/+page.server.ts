@@ -7,6 +7,7 @@ import {
 	listFieldSuggestions
 } from '$lib/server/queries/admin';
 import { listDiseases } from '$lib/server/queries/diseases';
+import { locationProblem } from '$lib/server/geo';
 import { hasErrors, parseIncident, today } from '$lib/validation/incident';
 import { viewerOf } from '$lib/auth/roles';
 import type { Actions, PageServerLoad } from './$types';
@@ -34,6 +35,12 @@ export const actions: Actions = {
 		// Shape is validated above; that the county actually exists needs the database.
 		if (!errors.countyFips && !(await countyExists(values.countyFips))) {
 			errors.countyFips = 'That county is not in the database.';
+		}
+
+		// Coordinates must fall in (or very near) the chosen county; see `$lib/geo/locate`.
+		if (!errors.countyFips && !errors.location) {
+			const problem = locationProblem(values, data.get('confirmLocation') === 'yes');
+			if (problem) errors.location = problem;
 		}
 
 		if (hasErrors(errors)) return fail(400, { errors, values, duplicates: [] as Duplicate[] });

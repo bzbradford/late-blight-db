@@ -2,6 +2,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import DownloadIcon from '@lucide/svelte/icons/download';
+	import LockIcon from '@lucide/svelte/icons/lock';
 	import SearchIcon from '@lucide/svelte/icons/search';
 	import IncidentDialog from '$lib/components/admin/IncidentDialog.svelte';
 	import DetectionDetail from '$lib/components/DetectionDetail.svelte';
@@ -54,13 +55,16 @@
 	);
 
 	/** The CSV holds exactly the public rows for this disease, year, and state. */
-	let downloadHref = $derived(
-		`${resolve('/detections.csv')}?${new URLSearchParams({
+	let downloadQuery = $derived(
+		new URLSearchParams({
 			disease: data.filters.diseaseSlug ?? 'all',
 			year: data.filters.year ? String(data.filters.year) : 'all',
 			...(data.filters.stateUsps ? { state: data.filters.stateUsps } : {})
-		})}`
+		}).toString()
 	);
+	let downloadHref = $derived(`${resolve('/detections.csv')}?${downloadQuery}`);
+	/** Admins only: the same rows with their private coordinates. */
+	let adminDownloadHref = $derived(`${resolve('/admin/detections.csv')}?${downloadQuery}`);
 
 	/**
 	 * Filters apply as soon as they change. Empty values are left out so the default view is
@@ -116,6 +120,12 @@
 			<DownloadIcon />
 			Download CSV
 		</Button>
+		{#if data.isAdmin}
+			<Button variant="outline" href={adminDownloadHref} download>
+				<LockIcon />
+				With coordinates
+			</Button>
+		{/if}
 		{#if data.signedIn}
 			<Button
 				href={resolve('/admin/incidents/new')}

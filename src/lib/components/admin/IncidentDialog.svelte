@@ -79,7 +79,7 @@
 					{#if incident}
 						{incident.diseaseName} · <span class="font-mono">{incident.publicId}</span>
 					{:else}
-						Everything recorded here appears on the public map.
+						Everything recorded here appears on the public map, except coordinates.
 					{/if}
 				</Dialog.Description>
 			</Dialog.Header>

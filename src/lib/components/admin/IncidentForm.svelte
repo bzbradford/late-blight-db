@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import LockIcon from '@lucide/svelte/icons/lock';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import type { ActionResult } from '@sveltejs/kit';
@@ -7,6 +8,15 @@
 	import { Button } from '$lib/components/ui/button';
 	import type { CountyOption } from '$lib/server/queries/admin';
 	import type { Disease } from '$lib/server/queries/diseases';
+	import { loadCountyShapes } from '$lib/geo/client';
+	import { formatCoordinates, parseCoordinates, type Point } from '$lib/geo/coordinates';
+	import {
+		checkLocation,
+		correctedPoint,
+		shapeLabel,
+		TOLERANCE_KM,
+		type CountyShape
+	} from '$lib/geo/locate';
 	import {
 		reportedBeforeObserved,
 		type FieldErrors,
@@ -79,6 +89,107 @@
 		if (formEl) snapshot = serialize(formEl);
 	});
 
+	// --- Private coordinates -------------------------------------------------------------
+	// Checked against the county as they're typed (the server checks again on save). With
+	// no county chosen yet, the one they fall in is chosen for the person.
+
+	let county: CountyCombobox | undefined = $state();
+	let chosenFips = $derived(values.countyFips ?? '');
+	let coordinates = $derived(values.location ? formatCoordinates(values.location) : '');
+	/** "Use these coordinates anyway", for a point a few km outside the county. */
+	let confirmed = $state(false);
+	/** Choose a county from the coordinates once the check can run, if none is chosen. */
+	let autoChoose = $state(false);
+
+	let shapes = $state<CountyShape[] | null>(null);
+	let shapesFailed = $state(false);
+
+	let parsed = $derived(coordinates.trim() ? parseCoordinates(coordinates) : null);
+	let point = $derived(parsed && 'point' in parsed ? parsed.point : null);
+	let check = $derived(shapes && point ? checkLocation(shapes, point, chosenFips || null) : null);
+	/** The minus sign or the order slipped: offered when the point lands in no county. */
+	let correction = $derived(
+		shapes &&
+			point &&
+			check &&
+			check.kind !== 'match' &&
+			check.kind !== 'confirm' &&
+			!('inside' in check && check.inside) &&
+			!(check.nearest && check.nearest.km <= TOLERANCE_KM)
+			? correctedPoint(shapes, point)
+			: null
+	);
+	let locationBlocks = $derived(
+		Boolean(parsed && 'error' in parsed) ||
+			check?.kind === 'mismatch' ||
+			(check?.kind === 'confirm' && !confirmed)
+	);
+
+	$effect(() => {
+		if (!point || shapes || shapesFailed) return;
+		loadCountyShapes()
+			.then((s) => (shapes = s))
+			.catch(() => (shapesFailed = true));
+	});
+
+	$effect(() => {
+		if (!autoChoose || !check) return;
+		autoChoose = false;
+		if (check.kind === 'unchosen' && check.nearest && check.nearest.km <= TOLERANCE_KM) {
+			county?.select(check.nearest.shape.fips);
+		}
+	});
+
+	function setCoordinates(text: string) {
+		coordinates = text;
+		confirmed = false;
+		autoChoose = !chosenFips;
+	}
+
+	function useCounty(fips: string) {
+		county?.select(fips);
+	}
+
+	function useCorrection(p: Point) {
+		setCoordinates(formatCoordinates(p));
+		// No input event fires for a programmatic change; the dirty check needs one.
+		queueMicrotask(checkDirty);
+	}
+
+	function clearCoordinates() {
+		setCoordinates('');
+		queueMicrotask(checkDirty);
+	}
+
+	function km(n: number) {
+		return `${n < 10 ? n.toFixed(1) : Math.round(n)} km`;
+	}
+
+	/** The check's verdict in words; the markup adds the buttons that act on it. */
+	let verdict = $derived.by(() => {
+		if (!check) return '';
+		switch (check.kind) {
+			case 'match':
+				return check.km === 0
+					? `In ${shapeLabel(check.county)}.`
+					: `${km(check.km)} outside ${shapeLabel(check.county)} on this map, whose borders are approximate — close enough.`;
+			case 'unchosen':
+				return check.nearest
+					? `These coordinates are in no county on this map. The nearest is ${shapeLabel(check.nearest.shape)}, ${km(check.nearest.km)} away.`
+					: 'These coordinates are not in any county on this map.';
+			case 'confirm':
+				return `These coordinates are ${km(check.km)} outside ${shapeLabel(check.county)}${check.inside ? `, in ${shapeLabel(check.inside)}` : ''}. Near coasts and islands the map's simplified borders can do this.`;
+			case 'mismatch': {
+				const chosen = check.chosen ? `, not ${shapeLabel(check.chosen)}` : '';
+				if (check.inside) return `These coordinates are in ${shapeLabel(check.inside)}${chosen}.`;
+				if (check.nearest) {
+					return `These coordinates are ${km(check.nearest.km)} from ${shapeLabel(check.nearest.shape)}${chosen}.`;
+				}
+				return 'These coordinates are not in any county on this map.';
+			}
+		}
+	});
+
 	const inputClass =
 		'w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none';
 </script>
@@ -118,14 +229,146 @@
 			on the map keys on FIPS, so this is the one input that must not accept free text.
 		-->
 		<CountyCombobox
+			bind:this={county}
 			id="countyFips"
 			name="countyFips"
 			{counties}
 			value={values.countyFips ?? ''}
 			invalid={Boolean(errors.countyFips)}
 			class={inputClass}
+			onchoose={(fips) => {
+				chosenFips = fips;
+				confirmed = false;
+			}}
 		/>
 		{#if errors.countyFips}<p class="text-sm text-destructive">{errors.countyFips}</p>{/if}
+	</div>
+
+	<div class="space-y-1.5">
+		<label for="coordinates" class="flex items-center gap-1.5 text-sm font-medium">
+			<LockIcon class="size-3.5 text-muted-foreground" aria-hidden="true" />
+			Coordinates <span class="font-normal text-muted-foreground">(optional, private)</span>
+		</label>
+		<input
+			id="coordinates"
+			name="coordinates"
+			type="text"
+			inputmode="decimal"
+			autocomplete="off"
+			spellcheck="false"
+			placeholder="43.0731, -89.4012"
+			value={coordinates}
+			oninput={(e) => setCoordinates(e.currentTarget.value)}
+			aria-invalid={locationBlocks || Boolean(errors.location) || undefined}
+			aria-describedby="coordinates-hint"
+			class={inputClass}
+		/>
+		<p id="coordinates-hint" class="text-xs text-muted-foreground">
+			Latitude, longitude in decimal degrees. Seen only by admins and whoever entered this detection
+			— never on the public map or in public downloads.
+		</p>
+
+		{#if confirmed}<input type="hidden" name="confirmLocation" value="yes" />{/if}
+
+		<div aria-live="polite">
+			{#if parsed && 'error' in parsed}
+				<p class="text-sm text-destructive">{parsed.error}</p>
+			{:else if check?.kind === 'match'}
+				<p class="text-sm text-muted-foreground">{verdict}</p>
+			{:else if check?.kind === 'unchosen'}
+				{#if check.nearest && check.nearest.km > TOLERANCE_KM}
+					<div
+						role="alert"
+						class="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm"
+					>
+						<p>{verdict}</p>
+						<button
+							type="button"
+							class="mt-1.5 font-medium underline underline-offset-4"
+							onclick={() =>
+								check?.kind === 'unchosen' && check.nearest && useCounty(check.nearest.shape.fips)}
+							>Use {check.nearest.shape.name}</button
+						>
+					</div>
+				{:else if !check.nearest}
+					<p role="alert" class="text-sm text-destructive">{verdict}</p>
+				{/if}
+			{:else if check?.kind === 'confirm'}
+				<div
+					role="alert"
+					class="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm {confirmed
+						? 'opacity-70'
+						: ''}"
+				>
+					<p>{verdict}</p>
+					<div class="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
+						{#if confirmed}
+							<span class="font-medium">Keeping {check.county.name}.</span>
+						{:else}
+							<button
+								type="button"
+								class="font-medium underline underline-offset-4"
+								onclick={() => (confirmed = true)}>Use these coordinates anyway</button
+							>
+						{/if}
+						{#if check.inside}
+							{@const inside = check.inside}
+							<button
+								type="button"
+								class="font-medium underline underline-offset-4"
+								onclick={() => useCounty(inside.fips)}>Use {inside.name}</button
+							>
+						{/if}
+						<button
+							type="button"
+							class="font-medium underline underline-offset-4"
+							onclick={clearCoordinates}>Clear coordinates</button
+						>
+					</div>
+				</div>
+			{:else if check?.kind === 'mismatch'}
+				<div
+					role="alert"
+					class="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm"
+				>
+					<p>{verdict} Fix the county or the coordinates to save.</p>
+					<div class="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
+						{#if check.inside ?? check.nearest?.shape}
+							{@const target = (check.inside ?? check.nearest?.shape)!}
+							<button
+								type="button"
+								class="font-medium underline underline-offset-4"
+								onclick={() => useCounty(target.fips)}>Use {target.name}</button
+							>
+						{/if}
+						<button
+							type="button"
+							class="font-medium underline underline-offset-4"
+							onclick={clearCoordinates}>Clear coordinates</button
+						>
+					</div>
+				</div>
+			{:else if errors.location}
+				<p class="text-sm text-destructive">{errors.location}</p>
+			{:else if point && shapesFailed}
+				<p class="text-sm text-muted-foreground">
+					Couldn't load the county map to check these here; they'll be checked when you save.
+				</p>
+			{/if}
+
+			{#if correction}
+				{@const fix = correction}
+				<p class="mt-1.5 text-sm">
+					Did you mean
+					<button
+						type="button"
+						class="font-medium underline underline-offset-4"
+						onclick={() => useCorrection(fix)}>{formatCoordinates(fix)}</button
+					>
+					({shapeLabel(fix.county)})?
+				</p>
+			{/if}
+		</div>
 	</div>
 
 	<div class="grid gap-5 sm:grid-cols-2">
@@ -246,12 +489,12 @@
 				type="submit"
 				name="confirmDuplicate"
 				value="yes"
-				disabled={submitting || Boolean(dateOrderError)}
+				disabled={submitting || Boolean(dateOrderError) || locationBlocks}
 			>
 				{submitting ? 'Saving…' : 'Add anyway'}
 			</Button>
 		{:else}
-			<Button type="submit" disabled={submitting || Boolean(dateOrderError)}>
+			<Button type="submit" disabled={submitting || Boolean(dateOrderError) || locationBlocks}>
 				{submitting ? 'Saving…' : submitLabel}
 			</Button>
 		{/if}

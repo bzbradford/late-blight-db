@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import type { FeatureCollection } from 'geojson';
 import { emptyRecord, TEMPLATE_EXAMPLE_COMMENT, type CsvRecord } from '$lib/csv/columns';
+import { countyShapes } from '$lib/geo/locate';
 import {
 	buildCountyIndex,
 	buildRow,
@@ -16,14 +18,38 @@ const COUNTIES: CountyRef[] = [
 	{ fips: '51760', name: 'Richmond', stateUsps: 'VA', stateName: 'Virginia' },
 	{ fips: '29510', name: 'St. Louis', stateUsps: 'MO', stateName: 'Missouri' },
 	{ fips: 'C2466', name: 'Montréal', stateUsps: 'QC', stateName: 'Québec' },
-	{ fips: 'C3506', name: 'Ottawa', stateUsps: 'ON', stateName: 'Ontario' }
+	{ fips: 'C3506', name: 'Ottawa', stateUsps: 'ON', stateName: 'Ontario' },
+	{ fips: '55105', name: 'Rock', stateUsps: 'WI', stateName: 'Wisconsin' }
 ];
 const index = buildCountyIndex(COUNTIES);
 const DISEASES = [
 	{ id: 1, slug: 'late-blight', name: 'Late blight' },
 	{ id: 2, slug: 'cucurbit-downy-mildew', name: 'Cucurbit downy mildew' }
 ];
-const context = { diseases: DISEASES, counties: index, todayIso: '2026-09-22' };
+/** Two counties as rectangles: Dane around 43.1°N 89.4°W, Rock directly south of it. */
+const SHAPES = countyShapes({
+	type: 'FeatureCollection',
+	features: [
+		['55025', 'Dane County', 43.0, 43.4],
+		['55105', 'Rock County', 42.5, 43.0]
+	].map(([fips, name, south, north]) => ({
+		type: 'Feature',
+		properties: { fips, name, state_name: 'Wisconsin' },
+		geometry: {
+			type: 'Polygon',
+			coordinates: [
+				[
+					[-89.8, south],
+					[-89.0, south],
+					[-89.0, north],
+					[-89.8, north],
+					[-89.8, south]
+				]
+			]
+		}
+	})) as FeatureCollection['features']
+});
+const context = { diseases: DISEASES, counties: index, shapes: SHAPES, todayIso: '2026-09-22' };
 
 function rec(overrides: Partial<CsvRecord>): CsvRecord {
 	return { ...emptyRecord(), ...overrides };
@@ -184,6 +210,56 @@ describe('buildRow', () => {
 		expect(result).toEqual({
 			row: 2,
 			messages: ["This is the template's example row. Delete it before importing."]
+		});
+	});
+
+	describe('coordinates', () => {
+		const base = { disease: 'late-blight', observed_on: '2026-09-19' };
+		const ok = (overrides: Partial<CsvRecord>) => {
+			const result = buildRow(2, rec({ ...base, ...overrides }), context);
+			if (isRowError(result)) throw new Error(result.messages.join(' '));
+			return result;
+		};
+		const errors = (overrides: Partial<CsvRecord>) => {
+			const result = buildRow(2, rec({ ...base, ...overrides }), context);
+			return isRowError(result) ? result.messages : [];
+		};
+
+		it('leaves stored coordinates alone when the columns are blank', () => {
+			expect(ok({ county_fips: '55025' }).values.location).toBeUndefined();
+		});
+
+		it('keeps coordinates that fall in the named county', () => {
+			const row = ok({ county_fips: '55025', latitude: '43.0731', longitude: '-89.4012' });
+			expect(row.values.location).toEqual({ lat: 43.0731, lon: -89.4012 });
+		});
+
+		it('chooses the county from coordinates when the row names none', () => {
+			const row = ok({ latitude: '43.0731', longitude: '-89.4012' });
+			expect(row.values.countyFips).toBe('55025');
+			expect(row.label.county).toBe('Dane, WI');
+		});
+
+		it('refuses coordinates in another county, saying which', () => {
+			expect(errors({ county_fips: '55025', latitude: '42.7', longitude: '-89.4' })).toEqual([
+				'latitude/longitude: These coordinates are in Rock County, Wisconsin, not Dane County, Wisconsin.'
+			]);
+		});
+
+		it('sends a point a few km outside the county to the form, which can confirm it', () => {
+			const [message] = errors({ county_fips: '55025', latitude: '43.44', longitude: '-89.4' });
+			expect(message).toMatch(/4\.4 km outside Dane County, Wisconsin/);
+			expect(message).toMatch(/through the form/);
+			expect(errors({ latitude: '43.44', longitude: '-89.4' })[0]).toMatch(/through the form/);
+		});
+
+		it('needs both columns, as decimal degrees', () => {
+			expect(errors({ county_fips: '55025', latitude: '43.0731' })).toEqual([
+				'Give both latitude and longitude, or neither.'
+			]);
+			expect(errors({ county_fips: '55025', latitude: 'north', longitude: '-89.4' })[0]).toMatch(
+				/^latitude\/longitude: Enter latitude, longitude/
+			);
 		});
 	});
 });
