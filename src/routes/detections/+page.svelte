@@ -163,13 +163,15 @@
 		</div>
 
 		<div class="space-y-1">
-			<label for="filter-state" class="text-xs text-muted-foreground">State</label>
+			<label for="filter-state" class="text-xs text-muted-foreground">State/Province</label>
 			<select
 				id="filter-state"
 				name="state"
 				class="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
 			>
-				<option value="" selected={data.filters.stateUsps === undefined}>All states</option>
+				<option value="" selected={data.filters.stateUsps === undefined}
+					>All states and provinces</option
+				>
 				{#each stateOptions as state (state.usps)}
 					<option value={state.usps} selected={data.filters.stateUsps === state.usps}>
 						{state.name}

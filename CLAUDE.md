@@ -31,7 +31,7 @@ pnpm test:e2e     # Playwright; server output goes to e2e/.server.log (E2E_SERVE
 pnpm db:generate  # Generate a migration from schema changes
 pnpm db:migrate   # Apply migrations
 pnpm db:studio    # Drizzle Studio
-pnpm build:geo    # Census shapefiles -> static/geo TopoJSON + counties.csv
+pnpm build:geo    # data/*.zip (Census + StatCan) -> static/geo TopoJSON + counties.csv
 pnpm seed         # reference data (diseases, counties) - idempotent
 pnpm seed:dev     # synthetic detections + dev admin; truncates incidents, dev only
 pnpm create-admin # first admin / lockout recovery (day to day: invite from /admin/users)
@@ -39,14 +39,18 @@ pnpm create-admin # first admin / lockout recovery (day to day: invite from /adm
 
 ## Architecture decisions
 
-**Continental US only.** Alaska, Hawaii, and the territories are excluded from the
-shapefiles and the county table — no reports are accepted for them, so carrying their
-geometry would only add clickable counties that can never hold data. The filter lives in
+**Continental US and Canada's provinces, south of 60°N.** Alaska, Hawaii, the US
+territories, and Canada's three territories are excluded from the shapefiles and the
+county table — no reports are accepted for them, so carrying their geometry would only
+add clickable counties that can never hold data. Quebec and Labrador are clipped at 60°N.
+Canadian census divisions stand in for counties, keyed `C` + CDUID (`C3506`, Ottawa) so a
+key can never be mistaken for a FIPS code; provinces are `C` + PRUID (`C35`), because
+PRUIDs collide with state FIPS (35 is also New Mexico). The filter lives in
 `scripts/build-geo.ts`; `pnpm seed` removes any county rows that fall out of scope, unless
-an incident still references them.
+an incident still references them. Every key check goes through `$lib/counties/key.ts`.
 
 **The map extent is a minimum, not a clamp.** `PUBLIC_MAP_DEFAULT_EXTENT` picks a named
-extent from `src/lib/map/extent.ts` (`conus` by default, `upper-midwest` for a regional
+extent from `src/lib/map/extent.ts` (`conus` by default, `us-canada` to frame southern Canada too, `upper-midwest` for a regional
 deployment). If the selected disease-year has detections outside it, the view widens to
 include them — a detection must never sit off-screen because the default was framed tighter
 than the data.
@@ -211,6 +215,8 @@ requests, such as the sign-in limits, lives in Postgres, and the database client
   possible duplicate without an explicit "keep both".
 - `static/geo/**` — generated TopoJSON; never hand-edit. Regenerate with `pnpm build:geo`.
 - `scripts/build-geo.ts` — the only thing that writes `static/geo/` and `scripts/data/counties.csv`.
+  Its source zips live in `data/`, gitignored (150 MB); the download URLs are at the top
+  of the script.
   Counties carry two names: `name` is Census NAME ("Dane"), which county search and CSV
   import match on and short labels use ("Dane, WI"); `full_name` is NAMELSAD ("Dane
   County", "Richmond city"), for anywhere a county is named in full. Never build a full
@@ -234,7 +240,7 @@ requests, such as the sign-in limits, lives in Postgres, and the database client
 - Do not add lookup tables, enums, or constraints for crop, operation type, or strain.
 - Do not add private or admin-only fields to incidents.
 - Do not pass a raw CSS variable or `oklch()` value to a MapLibre paint property.
-- Do not add counties outside the continental US.
+- Do not add counties outside the continental US and Canada's provinces south of 60°N.
 - Do not let the county field accept free text. Everything on the map keys on FIPS, so that
   one input stays constrained while crop/operation/strain stay unconstrained. It is a
   searchable picker (`CountyCombobox`, matching in `$lib/counties/search.ts`): typing only

@@ -14,7 +14,9 @@ const COUNTIES: CountyRef[] = [
 	{ fips: '01001', name: 'Autauga', stateUsps: 'AL', stateName: 'Alabama' },
 	{ fips: '51159', name: 'Richmond', stateUsps: 'VA', stateName: 'Virginia' },
 	{ fips: '51760', name: 'Richmond', stateUsps: 'VA', stateName: 'Virginia' },
-	{ fips: '29510', name: 'St. Louis', stateUsps: 'MO', stateName: 'Missouri' }
+	{ fips: '29510', name: 'St. Louis', stateUsps: 'MO', stateName: 'Missouri' },
+	{ fips: 'C2466', name: 'Montréal', stateUsps: 'QC', stateName: 'Québec' },
+	{ fips: 'C3506', name: 'Ottawa', stateUsps: 'ON', stateName: 'Ontario' }
 ];
 const index = buildCountyIndex(COUNTIES);
 const DISEASES = [
@@ -51,7 +53,32 @@ describe('resolveCounty', () => {
 
 	it('rejects a FIPS outside the table', () => {
 		expect(resolveCounty(rec({ county_fips: '02020' }), index)).toEqual({
-			error: 'county_fips 02020 is not a continental US county.'
+			error: 'county_fips 02020 is not a county on this map.'
+		});
+	});
+
+	it('resolves a Canadian census division key, in either case', () => {
+		expect(resolveCounty(rec({ county_fips: 'C3506' }), index)).toEqual({ county: COUNTIES[6] });
+		expect(resolveCounty(rec({ county_fips: ' c3506 ' }), index)).toEqual({
+			county: COUNTIES[6]
+		});
+	});
+
+	it('rejects a bare CDUID, which would read as a FIPS missing its zero', () => {
+		expect(resolveCounty(rec({ county_fips: '3506' }), index)).toEqual({
+			error: 'county_fips 03506 is not a county on this map.'
+		});
+		expect(resolveCounty(rec({ county_fips: 'C35' }), index)).toEqual({
+			error: 'county_fips "C35" is not a 5-digit FIPS code or a Canadian census division (C3506).'
+		});
+	});
+
+	it('matches province and division names without their accents', () => {
+		expect(resolveCounty(rec({ state: 'Quebec', county: 'Montreal' }), index)).toEqual({
+			county: COUNTIES[5]
+		});
+		expect(resolveCounty(rec({ state: 'QC', county: 'Montréal' }), index)).toEqual({
+			county: COUNTIES[5]
 		});
 	});
 
@@ -86,7 +113,7 @@ describe('resolveCounty', () => {
 			error: 'No county named "Atlantis" in WI. Use county_fips instead.'
 		});
 		expect(resolveCounty(rec({ state: 'HI', county: 'Maui' }), index)).toEqual({
-			error: '"HI" is not a continental US state.'
+			error: '"HI" is not a state or province on this map.'
 		});
 	});
 });
@@ -137,7 +164,7 @@ describe('buildRow', () => {
 			messages: [
 				'id "nope!" is not a detection ID.',
 				'disease "rust" is not recognised (use one of: late-blight, cucurbit-downy-mildew).',
-				'county_fips 99999 is not a continental US county.',
+				'county_fips 99999 is not a county on this map.',
 				'observed_on: The observation date cannot be in the future.'
 			]
 		});

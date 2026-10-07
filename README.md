@@ -17,7 +17,8 @@ SvelteKit 2 / Svelte 5 (runes), TypeScript, Tailwind 4, shadcn-svelte, MapLibre 
 PostgreSQL 18 with Drizzle ORM, Better Auth, `adapter-node`.
 
 County geometry is a static build-time TopoJSON asset, not database geometry — there is no
-PostGIS dependency. Scope is the continental US (lower 48 plus DC). See
+PostGIS dependency. Scope is the continental US (lower 48 plus DC) and Canada's ten
+provinces south of 60°N. See
 [CLAUDE.md](CLAUDE.md) for the architecture decisions.
 
 ## Setup
@@ -26,9 +27,14 @@ Requires Node 24+, pnpm 10+, and a PostgreSQL 18 database.
 
 ```sh
 pnpm install
+# Boundary files for build:geo (gitignored, ~150 MB) go in data/:
+#   cb_2021_us_county_500k.zip, cb_2021_us_state_500k.zip  (US Census, GENZ2021)
+#   lcd_000b21a_e.zip  (StatCan 2021 census divisions, cartographic; browser download)
+# URLs are at the top of scripts/build-geo.ts. The generated output is committed, so
+# this is only needed to change the map geometry.
 cp .env.example .env    # then fill in DATABASE_URL and BETTER_AUTH_SECRET
 pnpm db:migrate
-pnpm build:geo    # Census shapefiles -> static/geo + scripts/data/counties.csv
+pnpm build:geo    # boundary files in data/ -> static/geo + scripts/data/counties.csv
 pnpm seed         # reference data: diseases + counties (idempotent, production-safe)
 pnpm seed:dev     # synthetic detections for local development only
 pnpm dev
@@ -118,7 +124,7 @@ pnpm test:e2e     # Playwright
 pnpm db:generate  # generate a migration from schema changes
 pnpm db:migrate   # apply migrations
 pnpm db:studio    # Drizzle Studio
-pnpm build:geo    # regenerate map geometry from the Census shapefiles
+pnpm build:geo    # regenerate map geometry from the boundary files in data/
 pnpm seed         # seed diseases + counties
 pnpm seed:dev     # replace incidents with synthetic dev data
 pnpm auth:schema  # regenerate the Better Auth Drizzle schema

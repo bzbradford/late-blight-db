@@ -338,12 +338,15 @@
 				<dd><code>late-blight</code> or <code>cucurbit-downy-mildew</code> (or the full name).</dd>
 				<dt class="font-mono text-xs text-foreground">county_fips</dt>
 				<dd>
-					5-digit county code. Or leave blank and give <code>state</code> + <code>county</code>.
+					5-digit county FIPS code, or <code>C</code> + a Canadian census division's code (<code
+						>C3506</code
+					>). Or leave blank and give <code>state</code> + <code>county</code>.
 				</dd>
 				<dt class="font-mono text-xs text-foreground">state, county</dt>
 				<dd>
 					e.g. <code>WI</code> or <code>Wisconsin</code>, and <code>Dane</code> or
-					<code>Dane County</code>.
+					<code>Dane County</code>; for Canada, <code>ON</code> or <code>Ontario</code>, and
+					<code>Ottawa</code>.
 				</dd>
 				<dt class="font-mono text-xs text-foreground">observed_on</dt>
 				<dd>Required. <code>YYYY-MM-DD</code>.</dd>

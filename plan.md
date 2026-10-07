@@ -886,6 +886,43 @@ An easier path to a stakeholder site while the AgWeather DNS record is pending. 
 - [x] Detail dialog is headed by the disease name; "Location: Dane County, Wisconsin"
       is the first row of its list.
 
+## Phase 8 — Canada
+
+Canadian census divisions south of 60°N, in the ten provinces, alongside US counties.
+
+- **D31. Keys.** A division is `C` + CDUID (`C3506`, Ottawa): five characters, fits
+  `char(5)`, never a FIPS code. A province is `C` + PRUID (`C35`), since PRUIDs collide
+  with state FIPS. Province abbreviations (ON, QC, …) don't collide with USPS codes, so
+  `state_usps` holds them as-is.
+- **D32. Names.** CDNAME is both `name` and `full_name` (StatCan has no NAMELSAD), with
+  internal whitespace collapsed ("Division No. 1"). Province names come from a PRUID
+  table in `build-geo.ts`; the boundary file has only the code.
+- **D33. Geometry.** StatCan's _cartographic_ file, clipped at 60°N, simplified at 787 m:
+  the threshold the US counties' 8% works out to. Read once and pre-simplified to 100 m to
+  keep the build near 1.5 GB peak (the first attempt OOM-killed WSL).
+
+- [x] `build-geo.ts`: sources moved to gitignored `data/`, presence check with download
+      URLs; Canada counties, province outlines, and `counties.csv` rows (283 divisions).
+      US output unchanged. `counties.topo.json` 1.00 → 1.26 MB, `states.topo.json`
+      0.12 → 0.30 MB.
+- [x] `seed.ts` parses `counties.csv` with papaparse (quoted "Stormont, Dundas and
+      Glengarry").
+- [x] Migration 0009: `counties.state_fips` to `varchar(3)` (`C35`). Seeded locally: 3,108
+      US + 283 Canadian rows.
+- [x] One key rule, `$lib/counties/key.ts` (`55025` or `C3506`), used by form validation,
+      CSV import (which still restores Excel's dropped zero; a bare `3506` reads as FIPS
+      `03506`), and county search (`c3506` works). Import matches names without accents
+      ("Montreal", "Quebec").
+- [x] Wording: "State/Province" column and filter, "All states and provinces"; import help
+      describes `C3506` and province names.
+- [x] Map: `us-canada` extent (not the default; `conus` still widens to any Canadian
+      detection). Screenshot-checked.
+- [x] Tests: unit (keys, search, import, extent; 186 green), e2e: a detection in Ottawa end
+      to end. Affected e2e specs green (the map hover test timed out once under memory
+      pressure from another project's test run; 3/3 on rerun).
+- [x] Full e2e run: 99 green (2026-10-07).
+- [ ] Deploy: migration 0009 runs before `pnpm seed`, which every deploy already does.
+
 ---
 
 ## Session log
@@ -970,3 +1007,9 @@ Append one line per working session: date, what moved, what's next.
   client, sign-in limits moved to Postgres (migration 0008), production build migrates and
   seeds, runbook `deploy/VERCEL.md`. `VERCEL=1 pnpm build` checked locally; check/lint clean,
   179 unit / 98 e2e green. Next: user creates the Supabase and Vercel projects.
+- 2026-10-07 — Phase 8 started: `build:geo` now adds Canadian census divisions (D31–D33)
+  from gitignored sources in `data/`; seed parses quoted CSV. check/lint clean. Next: the
+  `state_fips` migration, then key validation, search, and import.
+- 2026-10-07 — Phase 8 app support: migration 0009, shared county-key rule, accent-folded
+  import matching, State/Province wording, `us-canada` extent, Ottawa e2e. check/lint clean,
+  186 unit / 99 e2e green. Not yet committed.

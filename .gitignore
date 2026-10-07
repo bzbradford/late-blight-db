@@ -28,3 +28,7 @@ tmp
 # Saved e2e sessions (e2e/auth.setup.ts), and the e2e server's log (playwright.config.ts)
 e2e/.auth
 e2e/.server.log
+
+# Boundary source files for `pnpm build:geo` (150 MB; download URLs in scripts/build-geo.ts)
+/data/*
+!/data/.keep

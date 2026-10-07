@@ -8,6 +8,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { notInArray, sql } from 'drizzle-orm';
+import Papa from 'papaparse';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { counties, diseases, incidents } from '../src/lib/server/db/schema';
@@ -42,30 +43,27 @@ const COUNTY_COLUMNS = [
 ];
 
 function parseCounties(path: string) {
-	const lines = readFileSync(path, 'utf8').trim().split('\n');
-	const header = lines[0].split(',');
-	if (header.join(',') !== COUNTY_COLUMNS.join(',')) {
-		throw new Error(`Unexpected counties.csv header: ${header.join(',')}`);
-	}
-	return lines.slice(1).map((line, i) => {
-		const f = line.split(',');
-		// The generator emits no quoted fields; assert rather than silently mis-parse.
-		if (f.length !== COUNTY_COLUMNS.length) {
-			throw new Error(
-				`counties.csv line ${i + 2} has ${f.length} fields, expected ${COUNTY_COLUMNS.length}`
-			);
-		}
-		return {
-			fips: f[0],
-			name: f[1],
-			fullName: f[2],
-			stateFips: f[3],
-			stateUsps: f[4],
-			stateName: f[5],
-			lon: Number(f[6]),
-			lat: Number(f[7])
-		};
+	// Quoted fields occur: "Stormont, Dundas and Glengarry".
+	const { data, meta, errors } = Papa.parse<Record<string, string>>(readFileSync(path, 'utf8'), {
+		header: true,
+		skipEmptyLines: true
 	});
+	if (errors.length > 0) {
+		throw new Error(`counties.csv line ${errors[0].row + 2}: ${errors[0].message}`);
+	}
+	if (meta.fields?.join(',') !== COUNTY_COLUMNS.join(',')) {
+		throw new Error(`Unexpected counties.csv header: ${meta.fields?.join(',')}`);
+	}
+	return data.map((f) => ({
+		fips: f.fips,
+		name: f.name,
+		fullName: f.full_name,
+		stateFips: f.state_fips,
+		stateUsps: f.state_usps,
+		stateName: f.state_name,
+		lon: Number(f.lon),
+		lat: Number(f.lat)
+	}));
 }
 
 const client = postgres(DATABASE_URL);

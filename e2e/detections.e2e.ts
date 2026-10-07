@@ -48,14 +48,14 @@ test.describe('public detections table', () => {
 		await page.goto('/detections?year=2026');
 		const state = page.locator('tbody tr td:nth-child(4)');
 
-		await page.getByRole('button', { name: 'State' }).click();
+		await page.getByRole('button', { name: 'State/Province' }).click();
 		const names = (await state.allTextContents()).map((n) => n.trim());
 		expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
 		expect(names).toContain('Wisconsin');
 
 		// The filter lists states by name, and only those with detections.
 		const options = await page.locator('#filter-state option').allTextContents();
-		expect(options[0]).toBe('All states');
+		expect(options[0]).toBe('All states and provinces');
 		expect(options.slice(1)).toEqual([...options.slice(1)].sort((a, b) => a.localeCompare(b)));
 
 		await page.selectOption('#filter-state', { label: 'Wisconsin' });

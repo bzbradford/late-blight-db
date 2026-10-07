@@ -1,3 +1,4 @@
+import { isCountyKey, normalizeCountyKey } from '$lib/counties/key';
 import type { CountyOption } from '$lib/server/queries/admin';
 
 /** How many matches the county picker lists at once; typing more narrows it. */
@@ -30,7 +31,7 @@ export function countyLabel(county: CountyOption): string {
 /**
  * Counties matching what was typed. Every typed word must begin a word of the county
  * name, the state name, or the state abbreviation, so "dane", "dane wi", "Dane County,
- * Wisconsin", and "st louis mo" all work. A 5-digit FIPS matches exactly.
+ * Wisconsin", and "st louis mo" all work. A county key ("55025", "C3506") matches exactly.
  *
  * Counties whose name starts with the first word rank first; otherwise alphabetical.
  */
@@ -40,7 +41,10 @@ export function searchCounties(
 	limit = MAX_MATCHES
 ): CountyOption[] {
 	const trimmed = query.trim();
-	if (/^\d{5}$/.test(trimmed)) return counties.filter((c) => c.fips === trimmed);
+	const key = normalizeCountyKey(trimmed);
+	if (isCountyKey(key) && !/^\d{4}$/.test(trimmed)) {
+		return counties.filter((c) => c.fips === key);
+	}
 
 	const typed = words(trimmed);
 	if (typed.length === 0) return [];

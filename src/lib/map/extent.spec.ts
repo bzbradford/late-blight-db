@@ -46,9 +46,19 @@ describe('expandExtent', () => {
 		expect(west).toBeLessThan(YAKIMA_WA.lon);
 	});
 
-	it('leaves a CONUS default alone for any in-scope detection', () => {
-		// Scope is CONUS, so nothing in the data can fall outside the national extent.
+	it('leaves a CONUS default alone for any US detection', () => {
 		expect(expandExtent(CONUS, [DANE_WI, CENTRE_PA, COLQUITT_GA, YAKIMA_WA])).toEqual(CONUS);
+	});
+
+	it('widens a CONUS default north and east for Canadian detections', () => {
+		const edmonton = { lon: -113.5, lat: 53.5 };
+		const stJohns = { lon: -52.9, lat: 47.4 };
+		expect(expandExtent(CONUS, [edmonton, stJohns])).toEqual([-125.0, 24.0, -51.4, 55.0]);
+	});
+
+	it('leaves a us-canada default alone for detections in southern Canada', () => {
+		const US_CANADA: Extent = [...EXTENTS['us-canada']];
+		expect(expandExtent(US_CANADA, [{ lon: -113.5, lat: 53.5 }, DANE_WI])).toEqual(US_CANADA);
 	});
 
 	it('only pads edges that actually moved', () => {

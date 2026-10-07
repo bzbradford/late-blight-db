@@ -110,6 +110,42 @@ test.describe('admin detection management', () => {
 		await expect(row()).toHaveCount(0);
 	});
 
+	test('a Canadian census division takes a detection, end to end', async ({ page }) => {
+		await signInAs(page, 'admin');
+		const dialog = page.getByRole('dialog');
+		const row = () =>
+			page.locator('tbody tr', { hasText: 'Ottawa' }).filter({ hasText: 'Ontario' });
+
+		await page.getByRole('link', { name: 'Add detection' }).click();
+		await page.selectOption('#diseaseId', { label: 'Late blight' });
+		await pickCounty(page, 'ottawa ontario');
+		await expect(page.locator('#countyFips')).toHaveValue('Ottawa, ON');
+		await page.fill('#observedOn', '2024-08-20');
+		await page.fill('#comments', 'Canadian end-to-end test.');
+		await dialog.getByRole('button', { name: 'Add detection' }).click();
+		await expect(dialog).toHaveCount(0);
+		await expect(row()).toBeVisible();
+
+		await page.goto('/?disease=late-blight&year=2024&county=C3506');
+		await expect(page.getByText('Ottawa, ON — 1 detection')).toBeVisible();
+		await expect(page.getByText('Canadian end-to-end test.')).toBeVisible();
+
+		// Clean up: retract, then delete.
+		await page.goto('/detections?year=2024');
+		await row().getByRole('link', { name: 'Edit' }).click();
+		await dialog.getByRole('button', { name: 'Retract' }).click();
+		await dialog.getByRole('button', { name: 'Yes, retract it' }).click();
+		await expect(dialog).toHaveCount(0);
+		await page.goto('/detections?retracted=1&year=2024');
+		await row().getByRole('link', { name: 'Edit' }).click();
+		await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
+		await page
+			.getByRole('dialog', { name: 'Delete this detection permanently?' })
+			.getByRole('button', { name: 'Delete permanently' })
+			.click();
+		await expect(row()).toHaveCount(0);
+	});
+
 	test('a detection that is not retracted can’t be deleted', async ({ page }) => {
 		await signInAs(page, 'admin');
 		const res = await page.request.post('/admin/incidents/2?/delete', {

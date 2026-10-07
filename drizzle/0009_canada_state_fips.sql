@@ -1,0 +1,1 @@
+ALTER TABLE "counties" ALTER COLUMN "state_fips" SET DATA TYPE varchar(3);

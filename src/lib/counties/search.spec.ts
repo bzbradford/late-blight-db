@@ -19,7 +19,10 @@ const COUNTIES = [
 	c('35013', 'Doña Ana', 'NM', 'New Mexico'),
 	c('26077', 'Kalamazoo', 'MI', 'Michigan'),
 	c('55001', 'Adams', 'WI', 'Wisconsin'),
-	c('17137', 'Morgan', 'IL', 'Illinois')
+	c('17137', 'Morgan', 'IL', 'Illinois'),
+	c('C2423', 'Québec', 'QC', 'Quebec'),
+	c('C3506', 'Ottawa', 'ON', 'Ontario'),
+	c('C4601', 'Division No. 1', 'MB', 'Manitoba')
 ];
 
 const fips = (q: string) => searchCounties(COUNTIES, q).map((x) => x.fips);
@@ -56,6 +59,14 @@ describe('searchCounties', () => {
 	it('finds a county by its exact FIPS', () => {
 		expect(fips('26077')).toEqual(['26077']);
 		expect(fips('99999')).toEqual([]);
+	});
+
+	it('finds a Canadian census division by key, name, or province', () => {
+		expect(fips('C3506')).toEqual(['C3506']);
+		expect(fips('c3506')).toEqual(['C3506']);
+		expect(fips('quebec')).toEqual(['C2423']);
+		expect(fips('ottawa on')).toEqual(['C3506']);
+		expect(fips('division 1 manitoba')).toEqual(['C4601']);
 	});
 
 	it('returns nothing for an empty query, and respects the limit', () => {

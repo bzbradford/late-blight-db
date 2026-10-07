@@ -12,7 +12,8 @@ import {
 	serial,
 	text,
 	timestamp,
-	unique
+	unique,
+	varchar
 } from 'drizzle-orm/pg-core';
 import { user } from './auth.schema';
 
@@ -40,6 +41,7 @@ export const diseases = pgTable('diseases', {
 export const counties = pgTable(
 	'counties',
 	{
+		/** County FIPS ("55025"), or `C` + CDUID for a Canadian census division ("C3506"). */
 		fips: char('fips', { length: 5 }).primaryKey(),
 		/** Census NAME ("Dane"): what county search and CSV import match on. */
 		name: text('name').notNull(),
@@ -48,7 +50,8 @@ export const counties = pgTable(
 		 * The bare name can't tell a Virginia independent city from the county beside it.
 		 */
 		fullName: text('full_name').notNull(),
-		stateFips: char('state_fips', { length: 2 }).notNull(),
+		/** State FIPS ("55"), or `C` + PRUID for a province ("C35"): PRUIDs collide with state FIPS. */
+		stateFips: varchar('state_fips', { length: 3 }).notNull(),
 		stateUsps: char('state_usps', { length: 2 }).notNull(),
 		stateName: text('state_name').notNull(),
 		lon: numeric('lon', { precision: 9, scale: 5, mode: 'number' }).notNull(),

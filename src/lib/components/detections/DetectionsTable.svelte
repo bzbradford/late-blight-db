@@ -77,7 +77,7 @@
 			header: 'County',
 			cell: ({ row }) => renderSnippet(countyCell, row.original)
 		},
-		{ id: 'state', accessorKey: 'stateName', header: 'State' },
+		{ id: 'state', accessorKey: 'stateName', header: 'State/Province' },
 		{ id: 'disease', accessorKey: 'diseaseName', header: 'Disease' },
 		{
 			id: 'crop',

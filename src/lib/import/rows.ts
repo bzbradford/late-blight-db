@@ -1,3 +1,4 @@
+import { isCountyKey, normalizeCountyKey } from '$lib/counties/key';
 import { TEMPLATE_EXAMPLE_COMMENT, type CsvRecord } from '$lib/csv/columns';
 import { normalizePublicId } from '$lib/public-id';
 import { parseIncident, type FieldErrors, type IncidentInput } from '$lib/validation/incident';
@@ -31,17 +32,21 @@ const FIELD_LABELS: Record<keyof FieldErrors, string> = {
 
 /**
  * County names as written in reports vary more than the Census spelling: "Dane County",
- * "dane", "Saint Louis". Normalising both sides lets those match without ever guessing
- * between two different counties.
+ * "dane", "Saint Louis", "Montreal" for Montréal. Normalising both sides lets those match
+ * without ever guessing between two different counties.
  */
 export function normalizeCountyName(name: string): string {
-	return name
+	return foldAccents(name)
 		.trim()
 		.toLowerCase()
 		.replace(/\s+/g, ' ')
 		.replace(/ (county|parish)$/, '')
 		.replace(/^(saint|st) /, 'st. ')
 		.replace(/^(sainte|ste) /, 'ste. ');
+}
+
+function foldAccents(text: string): string {
+	return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
 export function buildCountyIndex(counties: CountyRef[]) {
@@ -51,16 +56,16 @@ export function buildCountyIndex(counties: CountyRef[]) {
 
 	for (const c of counties) {
 		stateKeys.set(c.stateUsps.toLowerCase(), c.stateUsps);
-		stateKeys.set(c.stateName.toLowerCase(), c.stateUsps);
+		stateKeys.set(foldAccents(c.stateName).toLowerCase(), c.stateUsps);
 		const key = `${c.stateUsps}|${normalizeCountyName(c.name)}`;
 		byStateName.set(key, [...(byStateName.get(key) ?? []), c]);
 	}
 
 	return {
 		byFips,
-		/** State by postal code or full name, case-insensitive. */
+		/** State or province by postal code or full name, ignoring case and accents. */
 		state(value: string): string | undefined {
-			return stateKeys.get(value.trim().toLowerCase());
+			return stateKeys.get(foldAccents(value).trim().toLowerCase());
 		},
 		byName(stateUsps: string, county: string): CountyRef[] {
 			return byStateName.get(`${stateUsps}|${normalizeCountyName(county)}`) ?? [];
@@ -84,10 +89,14 @@ export function resolveCounty(
 
 	if (fipsRaw) {
 		// Excel reads FIPS codes as numbers and drops the leading zero: 01001 becomes 1001.
-		const fips = /^\d{4}$/.test(fipsRaw) ? `0${fipsRaw}` : fipsRaw;
-		if (!/^\d{5}$/.test(fips)) return { error: `county_fips "${fipsRaw}" is not a 5-digit code.` };
+		const fips = normalizeCountyKey(fipsRaw);
+		if (!isCountyKey(fips)) {
+			return {
+				error: `county_fips "${fipsRaw}" is not a 5-digit FIPS code or a Canadian census division (C3506).`
+			};
+		}
 		const county = index.byFips.get(fips);
-		if (!county) return { error: `county_fips ${fips} is not a continental US county.` };
+		if (!county) return { error: `county_fips ${fips} is not a county on this map.` };
 
 		// Both given and they disagree: one of them is wrong, and we can't tell which.
 		if (stateRaw && countyRaw) {
@@ -107,7 +116,7 @@ export function resolveCounty(
 	}
 
 	const usps = index.state(stateRaw);
-	if (!usps) return { error: `"${stateRaw}" is not a continental US state.` };
+	if (!usps) return { error: `"${stateRaw}" is not a state or province on this map.` };
 
 	const matches = index.byName(usps, countyRaw);
 	if (matches.length === 1) return { county: matches[0] };

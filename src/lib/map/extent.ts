@@ -17,6 +17,8 @@ export type Extent = [number, number, number, number];
 export const EXTENTS = {
 	/** Continental US. The default: national scope, no empty ocean. */
 	conus: [-125.0, 24.0, -66.5, 49.5],
+	/** CONUS plus southern Canada, out to Newfoundland: where Canadian production is. */
+	'us-canada': [-125.0, 24.0, -52.5, 54.0],
 	/** MN/WI/MI/IA/IL/IN/OH, for a regional deployment. */
 	'upper-midwest': [-97.5, 38.5, -80.5, 49.5]
 } as const satisfies Record<string, Extent>;

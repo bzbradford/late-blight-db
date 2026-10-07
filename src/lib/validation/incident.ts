@@ -6,6 +6,8 @@
  * FIPS check needs the database anyway. A schema library would cover only the trivial half.
  */
 
+import { isCountyKey } from '$lib/counties/key';
+
 export type IncidentInput = {
 	diseaseId: number;
 	countyFips: string;
@@ -104,7 +106,7 @@ export function parseIncident(
 	}
 
 	// Shape only — that the county exists is checked against the database by the caller.
-	if (!/^\d{5}$/.test(values.countyFips)) {
+	if (!isCountyKey(values.countyFips)) {
 		errors.countyFips = 'Choose a county.';
 	}
 

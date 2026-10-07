@@ -3107,3 +3107,286 @@ fips,name,full_name,state_fips,state_usps,state_name,lon,lat
 56041,Uinta,Uinta County,56,WY,Wyoming,-110.54763,41.28764
 56043,Washakie,Washakie County,56,WY,Wyoming,-107.51996,43.90608
 56045,Weston,Weston County,56,WY,Wyoming,-104.56766,43.84041
+C1001,Division No. 1,Division No. 1,C10,NL,Newfoundland and Labrador,-53.18206,47.16946
+C1002,Division No. 2,Division No. 2,C10,NL,Newfoundland and Labrador,-54.54411,47.82641
+C1003,Division No. 3,Division No. 3,C10,NL,Newfoundland and Labrador,-56.78678,47.99953
+C1004,Division No. 4,Division No. 4,C10,NL,Newfoundland and Labrador,-58.22669,48.37683
+C1005,Division No. 5,Division No. 5,C10,NL,Newfoundland and Labrador,-57.59614,49.02463
+C1006,Division No. 6,Division No. 6,C10,NL,Newfoundland and Labrador,-56.22286,48.90993
+C1007,Division No. 7,Division No. 7,C10,NL,Newfoundland and Labrador,-54.42526,48.53214
+C1008,Division No. 8,Division No. 8,C10,NL,Newfoundland and Labrador,-56.40515,49.62512
+C1009,Division No. 9,Division No. 9,C10,NL,Newfoundland and Labrador,-56.80062,50.58808
+C1010,Division No. 10,Division No. 10,C10,NL,Newfoundland and Labrador,-62.07792,53.47761
+C1011,Division No. 11,Division No. 11,C10,NL,Newfoundland and Labrador,-63.10589,57.25299
+C1101,Kings,Kings,C11,PE,Prince Edward Island,-62.60701,46.32445
+C1102,Queens,Queens,C11,PE,Prince Edward Island,-63.34116,46.30587
+C1103,Prince,Prince,C11,PE,Prince Edward Island,-64.24969,46.70938
+C1201,Shelburne,Shelburne,C12,NS,Nova Scotia,-65.37684,43.92275
+C1202,Yarmouth,Yarmouth,C12,NS,Nova Scotia,-65.78372,43.96267
+C1203,Digby,Digby,C12,NS,Nova Scotia,-65.80852,44.34475
+C1204,Queens,Queens,C12,NS,Nova Scotia,-64.96773,44.18247
+C1205,Annapolis,Annapolis,C12,NS,Nova Scotia,-65.23016,44.68802
+C1206,Lunenburg,Lunenburg,C12,NS,Nova Scotia,-64.56153,44.55798
+C1207,Kings,Kings,C12,NS,Nova Scotia,-64.62371,45.00559
+C1208,Hants,Hants,C12,NS,Nova Scotia,-63.8796,45.04962
+C1209,Halifax,Halifax,C12,NS,Nova Scotia,-62.82746,45.00984
+C1210,Colchester,Colchester,C12,NS,Nova Scotia,-63.26657,45.53914
+C1211,Cumberland,Cumberland,C12,NS,Nova Scotia,-64.06608,45.74297
+C1212,Pictou,Pictou,C12,NS,Nova Scotia,-62.566,45.4552
+C1213,Guysborough,Guysborough,C12,NS,Nova Scotia,-62.15344,45.21022
+C1214,Antigonish,Antigonish,C12,NS,Nova Scotia,-61.97275,45.51199
+C1215,Inverness,Inverness,C12,NS,Nova Scotia,-61.30606,45.93273
+C1216,Richmond,Richmond,C12,NS,Nova Scotia,-60.64153,45.69924
+C1217,Cape Breton,Cape Breton,C12,NS,Nova Scotia,-60.24052,45.97435
+C1218,Victoria,Victoria,C12,NS,Nova Scotia,-60.6162,46.47519
+C1301,Saint John,Saint John,C13,NB,New Brunswick,-65.78329,45.33889
+C1302,Charlotte,Charlotte,C13,NB,New Brunswick,-67.03075,45.34102
+C1303,Sunbury,Sunbury,C13,NB,New Brunswick,-66.38296,45.93067
+C1304,Queens,Queens,C13,NB,New Brunswick,-65.89222,45.96886
+C1305,Kings,Kings,C13,NB,New Brunswick,-65.56264,45.69506
+C1306,Albert,Albert,C13,NB,New Brunswick,-64.89615,45.81268
+C1307,Westmorland,Westmorland,C13,NB,New Brunswick,-64.42938,46.06975
+C1308,Kent,Kent,C13,NB,New Brunswick,-65.3401,46.52122
+C1309,Northumberland,Northumberland,C13,NB,New Brunswick,-66.09742,46.90156
+C1310,York,York,C13,NB,New Brunswick,-67.01245,46.04893
+C1311,Carleton,Carleton,C13,NB,New Brunswick,-67.47259,46.39401
+C1312,Victoria,Victoria,C13,NB,New Brunswick,-67.25415,47.0224
+C1313,Madawaska,Madawaska,C13,NB,New Brunswick,-68.46544,47.38895
+C1314,Restigouche,Restigouche,C13,NB,New Brunswick,-67.05928,47.66047
+C1315,Gloucester,Gloucester,C13,NB,New Brunswick,-65.35499,47.53156
+C2401,Communauté maritime des Îles-de-la-Madeleine,Communauté maritime des Îles-de-la-Madeleine,C24,QC,Quebec,-61.9065,47.38465
+C2402,Le Rocher-Percé,Le Rocher-Percé,C24,QC,Quebec,-64.80401,48.50228
+C2403,La Côte-de-Gaspé,La Côte-de-Gaspé,C24,QC,Quebec,-64.91872,48.92542
+C2404,La Haute-Gaspésie,La Haute-Gaspésie,C24,QC,Quebec,-65.94624,48.94341
+C2405,Bonaventure,Bonaventure,C24,QC,Quebec,-65.59409,48.34878
+C2406,Avignon,Avignon,C24,QC,Quebec,-66.6933,48.19579
+C2407,La Matapédia,La Matapédia,C24,QC,Quebec,-67.18026,48.34096
+C2408,La Matanie,La Matanie,C24,QC,Quebec,-67.00352,48.78058
+C2409,La Mitis,La Mitis,C24,QC,Quebec,-67.97473,48.33393
+C2410,Rimouski-Neigette,Rimouski-Neigette,C24,QC,Quebec,-68.43479,48.18629
+C2411,Les Basques,Les Basques,C24,QC,Quebec,-68.96828,48.08099
+C2412,Rivière-du-Loup,Rivière-du-Loup,C24,QC,Quebec,-69.32383,47.83823
+C2413,Témiscouata,Témiscouata,C24,QC,Quebec,-68.86426,47.56745
+C2414,Kamouraska,Kamouraska,C24,QC,Quebec,-69.75796,47.41272
+C2415,Charlevoix-Est,Charlevoix-Est,C24,QC,Quebec,-70.15109,47.86038
+C2416,Charlevoix,Charlevoix,C24,QC,Quebec,-70.79361,47.69279
+C2417,L'Islet,L'Islet,C24,QC,Quebec,-70.02221,47.05706
+C2418,Montmagny,Montmagny,C24,QC,Quebec,-70.33498,46.82046
+C2419,Bellechasse,Bellechasse,C24,QC,Quebec,-70.74659,46.67027
+C2420,L'Île-d'Orléans,L'Île-d'Orléans,C24,QC,Quebec,-70.94472,46.94066
+C2421,La Côte-de-Beaupré,La Côte-de-Beaupré,C24,QC,Quebec,-71.2959,47.49733
+C2422,La Jacques-Cartier,La Jacques-Cartier,C24,QC,Quebec,-71.47974,47.15613
+C2423,Québec,Québec,C24,QC,Quebec,-71.36011,46.83903
+C2425,Lévis,Lévis,C24,QC,Quebec,-71.20606,46.70831
+C2426,La Nouvelle-Beauce,La Nouvelle-Beauce,C24,QC,Quebec,-71.01097,46.48272
+C2427,Robert-Cliche,Robert-Cliche,C24,QC,Quebec,-70.85244,46.25194
+C2428,Les Etchemins,Les Etchemins,C24,QC,Quebec,-70.37183,46.36887
+C2429,Beauce-Sartigan,Beauce-Sartigan,C24,QC,Quebec,-70.65908,45.97541
+C2430,Le Granit,Le Granit,C24,QC,Quebec,-70.93464,45.59399
+C2431,Les Appalaches,Les Appalaches,C24,QC,Quebec,-71.29959,46.06549
+C2432,L'Érable,L'Érable,C24,QC,Quebec,-71.69484,46.24001
+C2433,Lotbinière,Lotbinière,C24,QC,Quebec,-71.55351,46.53916
+C2434,Portneuf,Portneuf,C24,QC,Quebec,-72.02924,47.04996
+C2435,Mékinac,Mékinac,C24,QC,Quebec,-73.50909,47.10667
+C2436,Shawinigan,Shawinigan,C24,QC,Quebec,-72.97989,46.81787
+C2437,Francheville,Francheville,C24,QC,Quebec,-72.46781,46.50381
+C2438,Bécancour,Bécancour,C24,QC,Quebec,-72.13086,46.3773
+C2439,Arthabaska,Arthabaska,C24,QC,Quebec,-71.93586,45.96713
+C2440,Les Sources,Les Sources,C24,QC,Quebec,-71.77567,45.74697
+C2441,Le Haut-Saint-François,Le Haut-Saint-François,C24,QC,Quebec,-71.45434,45.47287
+C2442,Le Val-Saint-François,Le Val-Saint-François,C24,QC,Quebec,-72.11039,45.57134
+C2443,Sherbrooke,Sherbrooke,C24,QC,Quebec,-71.9889,45.38229
+C2444,Coaticook,Coaticook,C24,QC,Quebec,-71.75263,45.14359
+C2445,Memphrémagog,Memphrémagog,C24,QC,Quebec,-72.30238,45.27901
+C2446,Brome-Missisquoi,Brome-Missisquoi,C24,QC,Quebec,-72.74422,45.16112
+C2447,La Haute-Yamaska,La Haute-Yamaska,C24,QC,Quebec,-72.65159,45.43415
+C2448,Acton,Acton,C24,QC,Quebec,-72.52509,45.6155
+C2449,Drummond,Drummond,C24,QC,Quebec,-72.46304,45.86463
+C2450,Nicolet-Yamaska,Nicolet-Yamaska,C24,QC,Quebec,-72.57993,46.15625
+C2451,Maskinongé,Maskinongé,C24,QC,Quebec,-73.00583,46.46443
+C2452,D'Autray,D'Autray,C24,QC,Quebec,-73.31065,46.2743
+C2453,Pierre-De Saurel,Pierre-De Saurel,C24,QC,Quebec,-72.98617,45.97874
+C2454,Les Maskoutains,Les Maskoutains,C24,QC,Quebec,-72.90709,45.67183
+C2455,Rouville,Rouville,C24,QC,Quebec,-72.94409,45.38918
+C2456,Le Haut-Richelieu,Le Haut-Richelieu,C24,QC,Quebec,-73.16285,45.23655
+C2457,La Vallée-du-Richelieu,La Vallée-du-Richelieu,C24,QC,Quebec,-73.20405,45.61198
+C2458,Longueuil,Longueuil,C24,QC,Quebec,-73.41829,45.52019
+C2459,Marguerite-D'Youville,Marguerite-D'Youville,C24,QC,Quebec,-73.35378,45.69638
+C2460,L'Assomption,L'Assomption,C24,QC,Quebec,-73.45077,45.82911
+C2461,Joliette,Joliette,C24,QC,Quebec,-73.44775,46.02075
+C2462,Matawinie,Matawinie,C24,QC,Quebec,-74.05279,46.77109
+C2463,Montcalm,Montcalm,C24,QC,Quebec,-73.70158,45.92075
+C2464,Les Moulins,Les Moulins,C24,QC,Quebec,-73.63879,45.74718
+C2465,Laval,Laval,C24,QC,Quebec,-73.72609,45.60421
+C2466,Montréal,Montréal,C24,QC,Quebec,-73.67336,45.49246
+C2467,Roussillon,Roussillon,C24,QC,Quebec,-73.69823,45.34092
+C2468,Les Jardins-de-Napierville,Les Jardins-de-Napierville,C24,QC,Quebec,-73.53596,45.15552
+C2469,Le Haut-Saint-Laurent,Le Haut-Saint-Laurent,C24,QC,Quebec,-74.19129,45.08268
+C2470,Beauharnois-Salaberry,Beauharnois-Salaberry,C24,QC,Quebec,-73.89479,45.25236
+C2471,Vaudreuil-Soulanges,Vaudreuil-Soulanges,C24,QC,Quebec,-74.27144,45.36374
+C2472,Deux-Montagnes,Deux-Montagnes,C24,QC,Quebec,-74.0261,45.52437
+C2473,Thérèse-De Blainville,Thérèse-De Blainville,C24,QC,Quebec,-73.82659,45.66011
+C2474,Mirabel,Mirabel,C24,QC,Quebec,-74.05815,45.64861
+C2475,La Rivière-du-Nord,La Rivière-du-Nord,C24,QC,Quebec,-74.01236,45.83585
+C2476,Argenteuil,Argenteuil,C24,QC,Quebec,-74.3755,45.67248
+C2477,Les Pays-d'en-Haut,Les Pays-d'en-Haut,C24,QC,Quebec,-74.32863,45.91362
+C2478,Les Laurentides,Les Laurentides,C24,QC,Quebec,-74.57557,46.14221
+C2479,Antoine-Labelle,Antoine-Labelle,C24,QC,Quebec,-75.17126,46.88435
+C2480,Papineau,Papineau,C24,QC,Quebec,-75.17068,45.85813
+C2481,Gatineau,Gatineau,C24,QC,Quebec,-75.65956,45.50806
+C2482,Les Collines-de-l'Outaouais,Les Collines-de-l'Outaouais,C24,QC,Quebec,-75.87403,45.64132
+C2483,La Vallée-de-la-Gatineau,La Vallée-de-la-Gatineau,C24,QC,Quebec,-76.2942,46.65624
+C2484,Pontiac,Pontiac,C24,QC,Quebec,-77.2001,46.46805
+C2485,Témiscamingue,Témiscamingue,C24,QC,Quebec,-78.56134,47.12368
+C2486,Rouyn-Noranda,Rouyn-Noranda,C24,QC,Quebec,-78.8716,48.16637
+C2487,Abitibi-Ouest,Abitibi-Ouest,C24,QC,Quebec,-79.16858,48.77677
+C2488,Abitibi,Abitibi,C24,QC,Quebec,-77.93279,48.6734
+C2489,La Vallée-de-l'Or,La Vallée-de-l'Or,C24,QC,Quebec,-76.67755,48.18948
+C2490,La Tuque,La Tuque,C24,QC,Quebec,-74.52116,48.31825
+C2491,Le Domaine-du-Roy,Le Domaine-du-Roy,C24,QC,Quebec,-73.43023,48.76442
+C2492,Maria-Chapdelaine,Maria-Chapdelaine,C24,QC,Quebec,-72.25087,49.92843
+C2493,Lac-Saint-Jean-Est,Lac-Saint-Jean-Est,C24,QC,Quebec,-71.75329,48.49658
+C2494,Le Saguenay-et-son-Fjord,Le Saguenay-et-son-Fjord,C24,QC,Quebec,-70.64756,50.32288
+C2495,La Haute-Côte-Nord,La Haute-Côte-Nord,C24,QC,Quebec,-69.56902,49.0811
+C2496,Manicouagan,Manicouagan,C24,QC,Quebec,-68.73219,50.42861
+C2497,Sept-Rivières--Caniapiscau,Sept-Rivières--Caniapiscau,C24,QC,Quebec,-68.52626,52.75086
+C2498,Minganie--Le Golfe-du-Saint-Laurent,Minganie--Le Golfe-du-Saint-Laurent,C24,QC,Quebec,-61.85647,51.195
+C2499,Nord-du-Québec,Nord-du-Québec,C24,QC,Quebec,-73.10697,55.19389
+C3501,"Stormont, Dundas and Glengarry","Stormont, Dundas and Glengarry",C35,ON,Ontario,-74.77918,45.20575
+C3502,Prescott and Russell,Prescott and Russell,C35,ON,Ontario,-74.96191,45.46998
+C3506,Ottawa,Ottawa,C35,ON,Ontario,-75.76208,45.21822
+C3507,Leeds and Grenville,Leeds and Grenville,C35,ON,Ontario,-75.96719,44.65023
+C3509,Lanark,Lanark,C35,ON,Ontario,-76.33051,45.04258
+C3510,Frontenac,Frontenac,C35,ON,Ontario,-76.81563,44.81079
+C3511,Lennox and Addington,Lennox and Addington,C35,ON,Ontario,-76.91385,44.3766
+C3512,Hastings,Hastings,C35,ON,Ontario,-77.6024,44.73239
+C3513,Prince Edward,Prince Edward,C35,ON,Ontario,-77.39886,44.02368
+C3514,Northumberland,Northumberland,C35,ON,Ontario,-77.99886,44.12246
+C3515,Peterborough,Peterborough,C35,ON,Ontario,-78.20831,44.53616
+C3516,Kawartha Lakes,Kawartha Lakes,C35,ON,Ontario,-78.81644,44.51827
+C3518,Durham,Durham,C35,ON,Ontario,-78.99735,44.00605
+C3519,York,York,C35,ON,Ontario,-79.41104,44.01815
+C3520,Toronto,Toronto,C35,ON,Ontario,-79.39042,43.72713
+C3521,Peel,Peel,C35,ON,Ontario,-79.80457,43.7742
+C3522,Dufferin,Dufferin,C35,ON,Ontario,-80.20254,44.0448
+C3523,Wellington,Wellington,C35,ON,Ontario,-80.53584,43.82802
+C3524,Halton,Halton,C35,ON,Ontario,-79.89481,43.51237
+C3525,Hamilton,Hamilton,C35,ON,Ontario,-80.02467,43.2718
+C3526,Niagara,Niagara,C35,ON,Ontario,-79.31379,43.03647
+C3528,Haldimand-Norfolk,Haldimand-Norfolk,C35,ON,Ontario,-80.30747,42.88735
+C3529,Brant,Brant,C35,ON,Ontario,-80.30751,43.13842
+C3530,Waterloo,Waterloo,C35,ON,Ontario,-80.53764,43.46888
+C3531,Perth,Perth,C35,ON,Ontario,-81.03899,43.48462
+C3532,Oxford,Oxford,C35,ON,Ontario,-80.77006,43.10836
+C3534,Elgin,Elgin,C35,ON,Ontario,-81.08491,42.76791
+C3536,Chatham-Kent,Chatham-Kent,C35,ON,Ontario,-82.13124,42.42932
+C3537,Essex,Essex,C35,ON,Ontario,-82.81695,42.15906
+C3538,Lambton,Lambton,C35,ON,Ontario,-82.11383,42.86556
+C3539,Middlesex,Middlesex,C35,ON,Ontario,-81.45858,43.01235
+C3540,Huron,Huron,C35,ON,Ontario,-81.46073,43.70502
+C3541,Bruce,Bruce,C35,ON,Ontario,-81.29307,44.23431
+C3542,Grey,Grey,C35,ON,Ontario,-80.72923,44.3547
+C3543,Simcoe,Simcoe,C35,ON,Ontario,-79.7468,44.47395
+C3544,Muskoka,Muskoka,C35,ON,Ontario,-79.36169,45.12801
+C3546,Haliburton,Haliburton,C35,ON,Ontario,-78.51469,45.1428
+C3547,Renfrew,Renfrew,C35,ON,Ontario,-77.27065,45.58782
+C3548,Nipissing,Nipissing,C35,ON,Ontario,-79.58067,46.62576
+C3549,Parry Sound,Parry Sound,C35,ON,Ontario,-79.81679,45.72767
+C3551,Manitoulin,Manitoulin,C35,ON,Ontario,-82.05032,45.7314
+C3552,Sudbury,Sudbury,C35,ON,Ontario,-82.02494,47.53232
+C3553,Greater Sudbury / Grand Sudbury,Greater Sudbury / Grand Sudbury,C35,ON,Ontario,-81.01273,46.58142
+C3554,Timiskaming,Timiskaming,C35,ON,Ontario,-80.35693,47.79537
+C3556,Cochrane,Cochrane,C35,ON,Ontario,-82.1191,50.5524
+C3557,Algoma,Algoma,C35,ON,Ontario,-84.63337,48.77211
+C3558,Thunder Bay,Thunder Bay,C35,ON,Ontario,-88.51435,50.19207
+C3559,Rainy River,Rainy River,C35,ON,Ontario,-91.62708,48.63121
+C3560,Kenora,Kenora,C35,ON,Ontario,-89.08974,53.74389
+C4601,Division No. 1,Division No. 1,C46,MB,Manitoba,-95.83523,49.73843
+C4602,Division No. 2,Division No. 2,C46,MB,Manitoba,-96.84758,49.50417
+C4603,Division No. 3,Division No. 3,C46,MB,Manitoba,-97.84907,49.27886
+C4604,Division No. 4,Division No. 4,C46,MB,Manitoba,-98.87775,49.25019
+C4605,Division No. 5,Division No. 5,C46,MB,Manitoba,-100.39839,49.27143
+C4606,Division No. 6,Division No. 6,C46,MB,Manitoba,-100.94905,49.79868
+C4607,Division No. 7,Division No. 7,C46,MB,Manitoba,-99.56782,49.80618
+C4608,Division No. 8,Division No. 8,C46,MB,Manitoba,-98.85751,50.1039
+C4609,Division No. 9,Division No. 9,C46,MB,Manitoba,-98.1822,49.90843
+C4610,Division No. 10,Division No. 10,C46,MB,Manitoba,-97.58562,49.74465
+C4611,Division No. 11,Division No. 11,C46,MB,Manitoba,-97.14585,49.87344
+C4612,Division No. 12,Division No. 12,C46,MB,Manitoba,-96.57535,49.96205
+C4613,Division No. 13,Division No. 13,C46,MB,Manitoba,-96.86542,50.23669
+C4614,Division No. 14,Division No. 14,C46,MB,Manitoba,-97.43985,50.1754
+C4615,Division No. 15,Division No. 15,C46,MB,Manitoba,-100.39871,50.34527
+C4616,Division No. 16,Division No. 16,C46,MB,Manitoba,-101.23063,51.01331
+C4617,Division No. 17,Division No. 17,C46,MB,Manitoba,-99.88188,51.11986
+C4618,Division No. 18,Division No. 18,C46,MB,Manitoba,-97.84242,50.79733
+C4619,Division No. 19,Division No. 19,C46,MB,Manitoba,-96.74366,52.31838
+C4620,Division No. 20,Division No. 20,C46,MB,Manitoba,-101.09258,52.03985
+C4621,Division No. 21,Division No. 21,C46,MB,Manitoba,-100.14146,54.21241
+C4622,Division No. 22,Division No. 22,C46,MB,Manitoba,-96.26848,54.76274
+C4623,Division No. 23,Division No. 23,C46,MB,Manitoba,-96.8422,58.1136
+C4701,Division No. 1,Division No. 1,C47,SK,Saskatchewan,-102.30985,49.52286
+C4702,Division No. 2,Division No. 2,C47,SK,Saskatchewan,-104.24864,49.52265
+C4703,Division No. 3,Division No. 3,C47,SK,Saskatchewan,-106.40528,49.54207
+C4704,Division No. 4,Division No. 4,C47,SK,Saskatchewan,-108.78913,49.53289
+C4705,Division No. 5,Division No. 5,C47,SK,Saskatchewan,-102.39186,50.58204
+C4706,Division No. 6,Division No. 6,C47,SK,Saskatchewan,-104.36587,50.59815
+C4707,Division No. 7,Division No. 7,C47,SK,Saskatchewan,-106.78069,50.58282
+C4708,Division No. 8,Division No. 8,C47,SK,Saskatchewan,-108.6129,50.79772
+C4709,Division No. 9,Division No. 9,C47,SK,Saskatchewan,-102.43106,51.71732
+C4710,Division No. 10,Division No. 10,C47,SK,Saskatchewan,-104.10855,51.63945
+C4711,Division No. 11,Division No. 11,C47,SK,Saskatchewan,-106.00239,51.67288
+C4712,Division No. 12,Division No. 12,C47,SK,Saskatchewan,-107.79815,51.9457
+C4713,Division No. 13,Division No. 13,C47,SK,Saskatchewan,-109.2616,52.15139
+C4714,Division No. 14,Division No. 14,C47,SK,Saskatchewan,-103.1931,53.00026
+C4715,Division No. 15,Division No. 15,C47,SK,Saskatchewan,-105.51802,52.86121
+C4716,Division No. 16,Division No. 16,C47,SK,Saskatchewan,-107.10898,53.36085
+C4717,Division No. 17,Division No. 17,C47,SK,Saskatchewan,-108.95988,53.7913
+C4718,Division No. 18,Division No. 18,C47,SK,Saskatchewan,-105.85832,57.02227
+C4801,Division No. 1,Division No. 1,C48,AB,Alberta,-110.78361,49.82506
+C4802,Division No. 2,Division No. 2,C48,AB,Alberta,-112.20388,49.87665
+C4803,Division No. 3,Division No. 3,C48,AB,Alberta,-113.58507,49.55565
+C4804,Division No. 4,Division No. 4,C48,AB,Alberta,-110.98603,51.37063
+C4805,Division No. 5,Division No. 5,C48,AB,Alberta,-112.95373,51.20286
+C4806,Division No. 6,Division No. 6,C48,AB,Alberta,-114.09794,51.16814
+C4807,Division No. 7,Division No. 7,C48,AB,Alberta,-111.51341,52.4894
+C4808,Division No. 8,Division No. 8,C48,AB,Alberta,-113.80707,52.38763
+C4809,Division No. 9,Division No. 9,C48,AB,Alberta,-115.65919,52.31061
+C4810,Division No. 10,Division No. 10,C48,AB,Alberta,-111.77146,53.4286
+C4811,Division No. 11,Division No. 11,C48,AB,Alberta,-113.79166,53.28512
+C4812,Division No. 12,Division No. 12,C48,AB,Alberta,-111.33354,54.75974
+C4813,Division No. 13,Division No. 13,C48,AB,Alberta,-114.4531,54.14647
+C4814,Division No. 14,Division No. 14,C48,AB,Alberta,-117.08019,53.41594
+C4815,Division No. 15,Division No. 15,C48,AB,Alberta,-115.28037,51.20683
+C4816,Division No. 16,Division No. 16,C48,AB,Alberta,-111.76733,58.33486
+C4817,Division No. 17,Division No. 17,C48,AB,Alberta,-116.29411,57.68118
+C4818,Division No. 18,Division No. 18,C48,AB,Alberta,-118.07766,54.55535
+C4819,Division No. 19,Division No. 19,C48,AB,Alberta,-119.05586,55.61224
+C5901,East Kootenay,East Kootenay,C59,BC,British Columbia,-115.6314,49.96429
+C5903,Central Kootenay,Central Kootenay,C59,BC,British Columbia,-117.29924,49.8533
+C5905,Kootenay Boundary,Kootenay Boundary,C59,BC,British Columbia,-118.63429,49.3644
+C5907,Okanagan-Similkameen,Okanagan-Similkameen,C59,BC,British Columbia,-120.1411,49.39486
+C5909,Fraser Valley,Fraser Valley,C59,BC,British Columbia,-121.88051,49.5512
+C5915,Greater Vancouver,Greater Vancouver,C59,BC,British Columbia,-122.68646,49.2099
+C5917,Capital,Capital,C59,BC,British Columbia,-123.89904,48.49788
+C5919,Cowichan Valley,Cowichan Valley,C59,BC,British Columbia,-124.1396,48.81995
+C5921,Nanaimo,Nanaimo,C59,BC,British Columbia,-124.34504,49.18258
+C5923,Alberni-Clayoquot,Alberni-Clayoquot,C59,BC,British Columbia,-125.36784,49.25775
+C5924,Strathcona,Strathcona,C59,BC,British Columbia,-124.55509,50.93574
+C5926,Comox Valley,Comox Valley,C59,BC,British Columbia,-125.16007,49.68705
+C5927,Powell River,Powell River,C59,BC,British Columbia,-124.3859,50.15076
+C5929,Sunshine Coast,Sunshine Coast,C59,BC,British Columbia,-123.75598,49.89473
+C5931,Squamish-Lillooet,Squamish-Lillooet,C59,BC,British Columbia,-122.91302,50.57965
+C5933,Thompson-Nicola,Thompson-Nicola,C59,BC,British Columbia,-120.39565,50.72546
+C5935,Central Okanagan,Central Okanagan,C59,BC,British Columbia,-119.45804,49.94892
+C5937,North Okanagan,North Okanagan,C59,BC,British Columbia,-118.77992,50.3874
+C5939,Columbia-Shuswap,Columbia-Shuswap,C59,BC,British Columbia,-117.9182,51.43263
+C5941,Cariboo,Cariboo,C59,BC,British Columbia,-123.3689,52.22943
+C5943,Mount Waddington,Mount Waddington,C59,BC,British Columbia,-126.02366,51.17749
+C5945,Central Coast,Central Coast,C59,BC,British Columbia,-126.31457,52.14669
+C5947,Skeena-Queen Charlotte,Skeena-Queen Charlotte,C59,BC,British Columbia,-131.94174,53.12646
+C5949,Kitimat-Stikine,Kitimat-Stikine,C59,BC,British Columbia,-130.01308,57.14663
+C5951,Bulkley-Nechako,Bulkley-Nechako,C59,BC,British Columbia,-125.65025,54.47499
+C5953,Fraser-Fort George,Fraser-Fort George,C59,BC,British Columbia,-122.39658,54.25908
+C5955,Peace River,Peace River,C59,BC,British Columbia,-122.14979,56.67074
+C5957,Stikine,Stikine,C59,BC,British Columbia,-127.96156,58.36621
+C5959,Northern Rockies,Northern Rockies,C59,BC,British Columbia,-123.44511,59.07406

@@ -63,8 +63,24 @@ describe('parseIncident', () => {
 		expect(values.crop).toBe('Potato');
 	});
 
-	it('rejects a malformed FIPS', () => {
-		for (const bad of ['', '5502', '550255', 'abcde', '55 25']) {
+	it('accepts a Canadian census division key', () => {
+		const { values, errors } = parseIncident(form({ countyFips: 'C3506' }), { todayIso: TODAY });
+		expect(errors.countyFips).toBeUndefined();
+		expect(values.countyFips).toBe('C3506');
+	});
+
+	it('rejects a malformed county key', () => {
+		for (const bad of [
+			'',
+			'5502',
+			'550255',
+			'abcde',
+			'55 25',
+			'3506',
+			'C35060',
+			'c3506',
+			'X3506'
+		]) {
 			const { errors } = parseIncident(form({ countyFips: bad }), { todayIso: TODAY });
 			expect(errors.countyFips, `expected ${bad} to be rejected`).toBeTruthy();
 		}

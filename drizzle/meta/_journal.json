@@ -64,6 +64,13 @@
       "when": 1790353752953,
       "tag": "0008_rate_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791389983991,
+      "tag": "0009_canada_state_fips",
+      "breakpoints": true
     }
   ]
 }
